@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net471</TargetFramework>
+    <AssemblyName>UnlockAllBlueprints</AssemblyName>
+    <RootNamespace>UnlockAllBlueprints</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Nullable>disable</Nullable>
+
+    <!--
+      Point this at your local Oxygen Not Included install so the game/Harmony
+      DLLs can be referenced for compilation. They are Klei's property and are
+      never included in or redistributed by this repository.
+      Override via: dotnet build -p:ONIInstallDir="C:\path\to\OxygenNotIncluded"
+      or by setting the ONI_INSTALL_DIR environment variable.
+    -->
+    <ONIInstallDir Condition="'$(ONIInstallDir)' == '' AND '$(ONI_INSTALL_DIR)' != ''">$(ONI_INSTALL_DIR)</ONIInstallDir>
+    <ONIInstallDir Condition="'$(ONIInstallDir)' == '' AND '$(OS)' == 'Windows_NT'">C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded</ONIInstallDir>
+    <ONIManagedDir>$(ONIInstallDir)\OxygenNotIncluded_Data\Managed</ONIManagedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ONIManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(ONIManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(ONIManagedDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ONIManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ONIManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Drop the built DLL alongside mod.yaml/mod_info.yaml so the folder can be
+       symlinked/copied straight into the game's Local mods directory. -->
+  <Target Name="CopyToOutputRoot" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(MSBuildProjectDirectory)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
