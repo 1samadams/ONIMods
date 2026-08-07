@@ -8,4 +8,7 @@ obj/
 !lib/**/*.dll
 
 # Staged deployable copy of the mod (dll + yamls) — build output, not source.
-mod/
+# This used to be `mod/`, back when the built DLL was dropped next to the
+# yamls at the repo root. In the monorepo `mod/` holds the tracked mod assets
+# and staging goes to dist/, so ignoring `mod/` would hide real sources.
+dist/
