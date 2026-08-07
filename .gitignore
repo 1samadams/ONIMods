@@ -1,0 +1,34 @@
+# ---- Local machine configuration (never commit) ----
+# Holds the absolute path to your Oxygen Not Included install.
+# Copy GamePath.local.props.example to GamePath.local.props and edit it.
+GamePath.local.props
+
+# ---- Build output ----
+bin/
+obj/
+dist/
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.pdb
+
+# ---- Visual Studio / VS Code ----
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.opendb
+
+# ---- NuGet ----
+packages/
+*.nupkg
+project.lock.json
+project.assets.json
+
+# ---- OS cruft ----
+Thumbs.db
+desktop.ini
+.DS_Store
