@@ -1,61 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    TargetFramework (net48), LangVersion, the game references and the
+    Microsoft.NETFramework.ReferenceAssemblies package all come from
+    Directory.Build.props at the monorepo root. Only what is specific to this
+    mod lives here.
+  -->
+
   <PropertyGroup>
-    <!-- net48: the game's shipped 0Harmony.dll targets .NET Framework 4.8. A lower
-         target makes MSBuild silently drop every game reference (MSB3274/MSB3275). -->
-    <TargetFramework>net48</TargetFramework>
     <AssemblyName>UnlockAllBlueprints</AssemblyName>
     <RootNamespace>UnlockAllBlueprints</RootNamespace>
-    <LangVersion>latest</LangVersion>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>disable</Nullable>
-
-    <!--
-      Point this at your local Oxygen Not Included install so the game/Harmony
-      DLLs can be referenced for compilation. They are Klei's property and are
-      never included in or redistributed by this repository.
-      Override via: dotnet build -p:ONIInstallDir="C:\path\to\OxygenNotIncluded"
-      or by setting the ONI_INSTALL_DIR environment variable.
-    -->
-    <ONIInstallDir Condition="'$(ONIInstallDir)' == '' AND '$(ONI_INSTALL_DIR)' != ''">$(ONI_INSTALL_DIR)</ONIInstallDir>
-    <ONIInstallDir Condition="'$(ONIInstallDir)' == '' AND '$(OS)' == 'Windows_NT'">C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded</ONIInstallDir>
-    <ONIManagedDir>$(ONIInstallDir)\OxygenNotIncluded_Data\Managed</ONIManagedDir>
   </PropertyGroup>
 
-  <!-- Supplies the 4.8 reference assemblies so building doesn't require the
-       .NET Framework 4.8 Developer Pack to be installed. -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-  </ItemGroup>
+  <PropertyGroup>
+    <ModAssetsDir>$(MSBuildProjectDirectory)\..\..\mod</ModAssetsDir>
+    <StageDir>$(MSBuildProjectDirectory)\..\..\dist\UnlockAllBlueprints</StageDir>
+  </PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(ONIManagedDir)\Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>$(ONIManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(ONIManagedDir)\0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>$(ONIManagedDir)\UnityEngine.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(ONIManagedDir)\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+  <!--
+    Stage the built DLL next to mod.yaml/mod_info.yaml so the folder can be
+    copied or symlinked straight into the game's Local mods directory.
 
-  <!-- Drop the built DLL alongside mod.yaml/mod_info.yaml so the folder can be
-       symlinked/copied straight into the game's Local mods directory. -->
-  <Target Name="CopyToOutputRoot" AfterTargets="Build">
-    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(MSBuildProjectDirectory)" SkipUnchangedFiles="true" />
+    This replaces the old CopyToOutputRoot target, which dropped the DLL beside
+    the yamls back when both sat at the repo root. The yamls now live in mod/,
+    so staging into dist/ is how the two get combined.
+  -->
+  <Target Name="StageMod" AfterTargets="Build">
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml"
+          DestinationFolder="$(StageDir)" />
+    <Message Importance="high" Text="UnlockAllBlueprints staged at $(StageDir)" />
   </Target>
 
 </Project>

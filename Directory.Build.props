@@ -1,0 +1,92 @@
+<Project>
+
+  <!--
+    Shared build configuration for every mod in this monorepo. MSBuild imports
+    this file automatically into each project underneath it, so the game
+    reference set and framework settings are defined once, here.
+  -->
+
+  <!--
+    $(GameLibsDir) points at the game's Managed folder. It is machine-specific
+    and therefore NOT tracked: copy GamePath.local.props.example to
+    GamePath.local.props and edit it. That file is gitignored.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)GamePath.local.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)GamePath.local.props')" />
+
+  <PropertyGroup>
+    <!--
+      Fallback for CI or a fresh clone with no local props file: set the
+      ONI_INSTALL_DIR environment variable, or pass the path directly with
+      `dotnet build -p:GameLibsDir="...\OxygenNotIncluded_Data\Managed"`.
+      Deliberately no hardcoded Steam path — that is what GamePath.local.props
+      is for, and a stale hardcoded default fails in confusing ways.
+    -->
+    <GameLibsDir Condition="'$(GameLibsDir)' == '' AND '$(ONI_INSTALL_DIR)' != ''">$(ONI_INSTALL_DIR)\OxygenNotIncluded_Data\Managed</GameLibsDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      net48, NOT net471. The game ships 0Harmony.dll built against .NET
+      Framework 4.8; targeting 4.7.1 makes MSBuild refuse to resolve it
+      (MSB3274) and, via the indirect dependency, Assembly-CSharp too
+      (MSB3275), failing the build with every game type "not found".
+    -->
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!-- Game DLLs are reference-only; never copy them to output. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Supplies the net48 targeting pack so the build does not depend on which
+      .NET Framework dev packs happen to be installed on the machine. Pinned
+      here so every mod uses the same version.
+    -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    The game assemblies every mod compiles against. Private=false keeps Klei's
+    DLLs out of the build output — they are their property and are never
+    redistributed by this repository. A mod needing an extra assembly (e.g.
+    Newtonsoft.Json) adds it in its own .csproj.
+  -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(GameLibsDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(GameLibsDir)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameLibsDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(GameLibsDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(GameLibsDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Fail early and legibly. Without this a bad GameLibsDir produces hundreds of
+    "The type or namespace name 'X' could not be found" errors that say nothing
+    about the actual cause.
+  -->
+  <Target Name="ValidateGameLibsDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="'$(GameLibsDir)' == ''"
+           Text="GameLibsDir is not set. Copy GamePath.local.props.example to GamePath.local.props (repo root) and point GameLibsDir at your Oxygen Not Included ...\OxygenNotIncluded_Data\Managed folder." />
+    <Error Condition="!Exists('$(GameLibsDir)\Assembly-CSharp.dll')"
+           Text="GameLibsDir is set to '$(GameLibsDir)' but Assembly-CSharp.dll is not there. Check the path in GamePath.local.props — it must be the OxygenNotIncluded_Data\Managed folder, not the game root." />
+  </Target>
+
+</Project>

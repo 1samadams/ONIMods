@@ -1,0 +1,28 @@
+<Project>
+
+  <!--
+    Copy this file to `GamePath.local.props` (same folder, drop the .example)
+    and set GameLibsDir to your own Oxygen Not Included install.
+
+    GamePath.local.props is gitignored: the path is specific to your machine,
+    so it must never be committed.
+
+    GameLibsDir must be the **Managed** folder, not the game root — that is
+    where Assembly-CSharp.dll, 0Harmony.dll and the UnityEngine DLLs live.
+
+    Typical locations:
+      Steam (default)  C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed
+      Steam (library on another drive)
+                       D:\SteamLibrary\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed
+      Epic             C:\Program Files\Epic Games\OxygenNotIncluded\OxygenNotIncluded_Data\Managed
+
+    Instead of this file you can also set the ONI_INSTALL_DIR environment
+    variable to the game root, or build with:
+      dotnet build -p:GameLibsDir="...\OxygenNotIncluded_Data\Managed"
+  -->
+
+  <PropertyGroup>
+    <GameLibsDir>C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</GameLibsDir>
+  </PropertyGroup>
+
+</Project>

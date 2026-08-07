@@ -51,23 +51,31 @@ are not distributed in this repo). The project targets .NET Framework 4.8 to
 match the game's `0Harmony.dll`; the 4.8 reference assemblies come from a
 NuGet package, so no Developer Pack install is required.
 
+This mod is built as part of the **ONIMods** monorepo. Point the repo at your
+game install once, by copying `GamePath.local.props.example` to
+`GamePath.local.props` at the monorepo root and setting `GameLibsDir` to your
+`OxygenNotIncluded_Data\Managed` folder. Then, from the monorepo root:
+
 ```bash
-dotnet build -p:ONIInstallDir="/path/to/OxygenNotIncluded"
+dotnet build ONIMods.sln
 ```
 
-or set the `ONI_INSTALL_DIR` environment variable to your game install
-directory before running `dotnet build`. The build copies
-`UnlockAllBlueprints.dll` next to `mod.yaml` so the project root can be used
-directly as the mod folder.
+`GamePath.local.props` is gitignored. Alternatively set the `ONI_INSTALL_DIR`
+environment variable to the game root, or pass
+`-p:GameLibsDir="/path/to/OxygenNotIncluded_Data/Managed"` on the command line.
+
+The build stages `UnlockAllBlueprints.dll` together with `mod.yaml` and
+`mod_info.yaml` into `dist/UnlockAllBlueprints/` — that staged folder is what
+you copy into the game's Local mods directory.
 
 ## Project layout
 
 | File | Purpose |
 | --- | --- |
-| `mod.yaml` | Mod title/description shown in the in-game Mods menu |
-| `mod_info.yaml` | API version and supported build metadata |
-| `UnlockAllBlueprintsMod.cs` | `UserMod2` entry point that applies the Harmony patches |
-| `Patches.cs` | The Harmony patches themselves |
-| `UnlockAllBlueprints.csproj` | Build configuration |
+| `mod/mod.yaml` | Mod title/description shown in the in-game Mods menu |
+| `mod/mod_info.yaml` | API version and supported build metadata |
+| `src/UnlockAllBlueprints/UnlockAllBlueprintsMod.cs` | `UserMod2` entry point that applies the Harmony patches |
+| `src/UnlockAllBlueprints/Patches.cs` | The Harmony patches themselves |
+| `src/UnlockAllBlueprints/UnlockAllBlueprints.csproj` | Mod-specific build settings; shared settings live in the monorepo's `Directory.Build.props` |
 
 See `CLAUDE.md` for notes aimed at AI coding agents working in this repo.

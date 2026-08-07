@@ -4,24 +4,29 @@ Guidance for Claude Code (or other AI agents) working in this repository.
 
 ## What this is
 
-A single-mod repo for *Oxygen Not Included* (ONI). The mod uses Harmony to
-patch the game's blueprint `rarity` getters so every Printing Pod blueprint
-is treated as `PermitRarity.Universal` — i.e. always unlocked. See
-`README.md` for the player-facing explanation and install instructions.
+One mod within the **ONIMods** monorepo, for *Oxygen Not Included* (ONI). The
+mod uses Harmony to patch the game's blueprint `rarity` getters so every
+Printing Pod blueprint is treated as `PermitRarity.Universal` — i.e. always
+unlocked. See `README.md` for the player-facing explanation and install
+instructions.
 
-The mod folder *is* the repo root: `mod.yaml`, `mod_info.yaml`, and the
-built DLL sit side by side, matching how Klei's local-mods loader expects a
-mod to be laid out. Don't move mod files into a subdirectory without also
-updating install instructions in `README.md`.
+Layout (normalized to match the other mods in the monorepo): sources in
+`src/UnlockAllBlueprints/`, mod assets (`mod.yaml`, `mod_info.yaml`) in `mod/`.
+The two are combined by the build's `StageMod` target into
+`dist/UnlockAllBlueprints/`, which is the folder Klei's local-mods loader
+expects — DLL and yamls side by side. This mod used to live flat at its own
+repo root; if you move files again, update the layout table in `README.md`
+and the `ModAssetsDir`/`StageDir` paths in the csproj.
 
 ## No game files in this repo
 
 `Assembly-CSharp.dll`, `0Harmony.dll`, and the other Managed DLLs referenced
-by `UnlockAllBlueprints.csproj` belong to Klei/Steam and are **not**
-checked into this repo, and should never be committed here. The csproj
-resolves them via `$(ONIInstallDir)` (an MSBuild property) or the
-`ONI_INSTALL_DIR` environment variable, pointed at a local game install.
-This means:
+by this mod belong to Klei/Steam and are **not** checked into this repo, and
+should never be committed here. They are resolved via `$(GameLibsDir)`, set in
+the monorepo root's gitignored `GamePath.local.props` (see
+`GamePath.local.props.example`), with the `ONI_INSTALL_DIR` environment
+variable as a fallback. The references themselves live in the monorepo's
+`Directory.Build.props`, not in this mod's csproj. This means:
 
 - `dotnet build`/`dotnet restore` will fail in a sandbox or CI environment
   without a real ONI install available — that's expected, not a bug in the
@@ -95,7 +100,7 @@ Unity game aren't practically unit-testable). Verification is manual, in a
 running copy of Oxygen Not Included, by an environment with the real game
 installed:
 
-1. Build with a real `ONIInstallDir` pointed at the game.
-2. Copy the mod folder into the local mods directory (see `README.md`).
+1. Build with a real `GameLibsDir` pointed at the game's Managed folder.
+2. Copy `dist/UnlockAllBlueprints/` into the local mods directory (see `README.md`).
 3. Start a new game and check the Printing Pod / base-select screen offers
    every blueprint rarity tier, not just previously-unlocked ones.

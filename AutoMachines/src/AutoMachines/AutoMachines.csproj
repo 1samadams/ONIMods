@@ -1,25 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    TargetFramework (net48), LangVersion, the game references and the
+    Microsoft.NETFramework.ReferenceAssemblies package all come from
+    Directory.Build.props at the monorepo root. Only what is specific to this
+    mod lives here.
+  -->
+
   <PropertyGroup>
-    <!--
-      net48, NOT net471. The game ships 0Harmony.dll built against .NET Framework
-      4.8; targeting 4.7.1 makes MSBuild refuse to resolve it (MSB3274) and, via
-      the indirect dependency, Assembly-CSharp too (MSB3275), which fails the build
-      with every game type "not found".
-    -->
-    <TargetFramework>net48</TargetFramework>
     <AssemblyName>AutoMachines</AssemblyName>
     <RootNamespace>AutoMachines</RootNamespace>
-    <LangVersion>latest</LangVersion>
     <Version>1.0.0</Version>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultItems>true</EnableDefaultItems>
-    <!-- Game DLLs are reference-only; never copy them to output. -->
-    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <PropertyGroup>
-    <ManagedDir>C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</ManagedDir>
     <!--
       Must resolve the REAL Documents folder, not $(USERPROFILE)\Documents.
       OneDrive Known Folder Move redirects Documents to %USERPROFILE%\OneDrive\
@@ -33,34 +28,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Supplies the net48 targeting pack, so the build does not depend on which
-         .NET Framework dev packs happen to be installed on the machine. -->
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="Assembly-CSharp">
-      <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="Assembly-CSharp-firstpass">
-      <HintPath>$(ManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="0Harmony">
-      <HintPath>$(ManagedDir)\0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine">
-      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <!-- Mod-specific: used to read config.json. -->
     <Reference Include="Newtonsoft.Json">
-      <HintPath>$(ManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <HintPath>$(GameLibsDir)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
