@@ -20,8 +20,16 @@
 
   <PropertyGroup>
     <ManagedDir>C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</ManagedDir>
-    <ModDeployDir>$(USERPROFILE)\Documents\Klei\OxygenNotIncluded\mods\Local\AutoMachines</ModDeployDir>
+    <!--
+      Must resolve the REAL Documents folder, not $(USERPROFILE)\Documents.
+      OneDrive Known Folder Move redirects Documents to %USERPROFILE%\OneDrive\
+      Documents; the game follows the redirect but $(USERPROFILE)\Documents does
+      not, so the literal path silently deploys to a folder the game never reads.
+    -->
+    <DocumentsDir>$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))</DocumentsDir>
+    <ModDeployDir>$(DocumentsDir)\Klei\OxygenNotIncluded\mods\Local\AutoMachines</ModDeployDir>
     <ModAssetsDir>$(MSBuildProjectDirectory)\..\..\mod</ModAssetsDir>
+    <StageDir>$(MSBuildProjectDirectory)\..\..\dist\AutoMachines</StageDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -58,16 +66,39 @@
   </ItemGroup>
 
   <!--
-    Build -> test in one command. The DLL and yaml are overwritten every build;
+    Stage the complete, ready-to-install mod folder inside the repo. This always
+    succeeds, and is what you hand-copy if the deploy step below is blocked.
+  -->
+  <Target Name="StageMod" AfterTargets="Build">
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml;$(ModAssetsDir)\config.json"
+          DestinationFolder="$(StageDir)" />
+    <Message Importance="high" Text="AutoMachines staged at $(StageDir)" />
+  </Target>
+
+  <!--
+    Deploy into the game's Local mods folder. ContinueOnError is deliberate:
+    Windows Controlled Folder Access (ransomware protection) guards the real
+    Documents folder and blocks MSBuild from writing there, failing with a
+    misleading "Could not find file". A blocked deploy must not fail the build;
+    the staged folder above is still valid, just copy it across manually.
+
     config.json is copied ONLY if absent so a player's edits survive rebuilds.
   -->
-  <Target Name="DeployToLocalMods" AfterTargets="Build">
-    <MakeDir Directories="$(ModDeployDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModDeployDir)" />
-    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml" DestinationFolder="$(ModDeployDir)" />
+  <Target Name="DeployToLocalMods" AfterTargets="StageMod">
+    <MakeDir Directories="$(ModDeployDir)" ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
     <Copy SourceFiles="$(ModAssetsDir)\config.json" DestinationFolder="$(ModDeployDir)"
-          Condition="!Exists('$(ModDeployDir)\config.json')" />
-    <Message Importance="high" Text="AutoMachines deployed to $(ModDeployDir)" />
+          ContinueOnError="WarnAndContinue"
+          Condition="Exists('$(ModDeployDir)') And !Exists('$(ModDeployDir)\config.json')" />
+    <Message Importance="high" Condition="Exists('$(ModDeployDir)\AutoMachines.dll')"
+             Text="AutoMachines deployed to $(ModDeployDir)" />
+    <Message Importance="high" Condition="!Exists('$(ModDeployDir)\AutoMachines.dll')"
+             Text="AutoMachines could NOT auto-deploy (Controlled Folder Access?). Copy $(StageDir) to $(ModDeployDir) manually." />
   </Target>
 
 </Project>

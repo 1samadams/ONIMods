@@ -130,19 +130,32 @@ mod/config.json                               # default config, copied on build
 The eleven fabricator patches share one file because they are one pattern; each still gets its own `[HarmonyPatch]` class and its own `Prepare()`, so a game update that breaks one building's config class does not stop the other ten from patching.
 
 ## Build & deploy
-Build output stays in `src/AutoMachines/bin/`. A csproj post-build `Target` then **copies** `AutoMachines.dll` + the three files from `mod/` into:
-
-`%USERPROFILE%\Documents\Klei\OxygenNotIncluded\mods\Local\AutoMachines\`
-
-so build → test is one command. The Local mods folder is a copy target, not the build output directory.
-
 Build command (verified working, clean):
 
 ```
 dotnet build src/AutoMachines/AutoMachines.csproj -c Release
 ```
 
+The build does two things after compiling:
+
+1. **`StageMod`** assembles the complete, ready-to-install mod folder at `dist/AutoMachines/` (gitignored). This always succeeds.
+2. **`DeployToLocalMods`** tries to copy that into the game's Local mods folder. This is `ContinueOnError` on purpose — see below.
+
 `config.json` is copied **only if absent** in the deploy folder, so a player's edits survive rebuilds. Delete it there to regenerate defaults.
+
+### The deploy path is NOT `%USERPROFILE%\Documents`
+Two Windows behaviours bite here, and both were hit on this machine:
+
+- **OneDrive Known Folder Move.** The real Documents folder is `%USERPROFILE%\OneDrive\Documents`, and that is where the game reads and writes (save files live there). `$(USERPROFILE)\Documents` still resolves to an unredirected, *game-invisible* folder — deploying there looks like it worked and does nothing. The csproj therefore resolves `$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))`, which follows the redirect. Never hardcode `$(USERPROFILE)\Documents`.
+- **Windows Controlled Folder Access** (Defender ransomware protection, `Get-MpPreference | Select EnableControlledFolderAccess`) is **enabled on this machine**. It guards the real Documents folder and blocks MSBuild from writing there, failing with a *misleading* `Could not find file` on create — it reads like the path is missing when the write was actually denied. Reads are unaffected, which is why directory listings look fine.
+
+So the automatic deploy currently fails by design-of-the-OS, not by bug. The build prints what to do and still succeeds. To install:
+
+**Copy `dist\AutoMachines` into `%USERPROFILE%\OneDrive\Documents\Klei\OxygenNotIncluded\mods\Local\` using File Explorer** — Explorer is a trusted app, so Controlled Folder Access allows it.
+
+To make auto-deploy work instead, either allow `dotnet.exe`/MSBuild through Controlled Folder Access (needs admin) or turn it off. Do not do either without asking the user; it is a security setting.
+
+Diagnostic tell: if a write to Documents fails with `Could not find file` while reads work, suspect Controlled Folder Access before suspecting the path.
 
 `mod_info.yaml` needs `supportedContent: ALL`, `APIVersion: 2` (Harmony 2.x), and `minimumSupportedBuild`.
 **Baseline game build: `744825`** (`U59-744825-SCRPN`, read from `Player.log`). This is the version every claim in this file was verified against; when an update breaks the mod, diff against this.
