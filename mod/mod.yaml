@@ -1,3 +1,3 @@
 title: "Auto Machines"
 description: "Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Each building can be toggled in config.json."
-staticID: Sam.AutoMachines
+staticID: AutoMachines

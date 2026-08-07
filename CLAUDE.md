@@ -160,7 +160,7 @@ Diagnostic tell: if a write to Documents fails with `Could not find file` while 
 `mod_info.yaml` needs `supportedContent: ALL`, `APIVersion: 2` (Harmony 2.x), and `minimumSupportedBuild`.
 **Baseline game build: `744825`** (`U59-744825-SCRPN`, read from `Player.log`). This is the version every claim in this file was verified against; when an update breaks the mod, diff against this.
 
-`mod.yaml` needs title, description, and staticID (e.g. `Sam.AutoMachines`).
+`mod.yaml` needs title, description, and staticID (e.g. `AutoMachines`).
 
 ## Debugging
 Game log: `%USERPROFILE%\AppData\LocalLow\Klei\Oxygen Not Included\Player.log`
