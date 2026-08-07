@@ -1,0 +1,104 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      net48, NOT net471. The game ships 0Harmony.dll built against .NET Framework
+      4.8; targeting 4.7.1 makes MSBuild refuse to resolve it (MSB3274) and, via
+      the indirect dependency, Assembly-CSharp too (MSB3275), which fails the build
+      with every game type "not found".
+    -->
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>AutoMachines</AssemblyName>
+    <RootNamespace>AutoMachines</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <EnableDefaultItems>true</EnableDefaultItems>
+    <!-- Game DLLs are reference-only; never copy them to output. -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ManagedDir>C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded\OxygenNotIncluded_Data\Managed</ManagedDir>
+    <!--
+      Must resolve the REAL Documents folder, not $(USERPROFILE)\Documents.
+      OneDrive Known Folder Move redirects Documents to %USERPROFILE%\OneDrive\
+      Documents; the game follows the redirect but $(USERPROFILE)\Documents does
+      not, so the literal path silently deploys to a folder the game never reads.
+    -->
+    <DocumentsDir>$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))</DocumentsDir>
+    <ModDeployDir>$(DocumentsDir)\Klei\OxygenNotIncluded\mods\Local\AutoMachines</ModDeployDir>
+    <ModAssetsDir>$(MSBuildProjectDirectory)\..\..\mod</ModAssetsDir>
+    <StageDir>$(MSBuildProjectDirectory)\..\..\dist\AutoMachines</StageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Supplies the net48 targeting pack, so the build does not depend on which
+         .NET Framework dev packs happen to be installed on the machine. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp-firstpass">
+      <HintPath>$(ManagedDir)\Assembly-CSharp-firstpass.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(ManagedDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(ManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Stage the complete, ready-to-install mod folder inside the repo. This always
+    succeeds, and is what you hand-copy if the deploy step below is blocked.
+  -->
+  <Target Name="StageMod" AfterTargets="Build">
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml;$(ModAssetsDir)\config.json"
+          DestinationFolder="$(StageDir)" />
+    <Message Importance="high" Text="AutoMachines staged at $(StageDir)" />
+  </Target>
+
+  <!--
+    Deploy into the game's Local mods folder. ContinueOnError is deliberate:
+    Windows Controlled Folder Access (ransomware protection) guards the real
+    Documents folder and blocks MSBuild from writing there, failing with a
+    misleading "Could not find file". A blocked deploy must not fail the build;
+    the staged folder above is still valid, just copy it across manually.
+
+    config.json is copied ONLY if absent so a player's edits survive rebuilds.
+  -->
+  <Target Name="DeployToLocalMods" AfterTargets="StageMod">
+    <MakeDir Directories="$(ModDeployDir)" ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\config.json" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue"
+          Condition="Exists('$(ModDeployDir)') And !Exists('$(ModDeployDir)\config.json')" />
+    <Message Importance="high" Condition="Exists('$(ModDeployDir)\AutoMachines.dll')"
+             Text="AutoMachines deployed to $(ModDeployDir)" />
+    <Message Importance="high" Condition="!Exists('$(ModDeployDir)\AutoMachines.dll')"
+             Text="AutoMachines could NOT auto-deploy (Controlled Folder Access?). Copy $(StageDir) to $(ModDeployDir) manually." />
+  </Target>
+
+</Project>
