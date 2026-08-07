@@ -2,17 +2,19 @@
 
 A [Harmony](https://github.com/pardeike/Harmony)-based mod for *Oxygen Not
 Included* that unlocks every Printing Pod blueprint — building facades,
-artables, clothing items, and balloon artist facades — regardless of Colony
-Achievement progress or Klei account unlock status.
+artables, clothing items, balloon artist facades, sticker bombs, equippable
+facades, and monument parts — regardless of Colony Achievement progress or
+Klei account unlock status.
 
 ## How it works
 
 Klei's blueprint system gates most blueprints behind a `rarity` tier.
 Anything below `Universal` rarity is only offered if the game believes your
 account (or local save) has unlocked it via Colony Achievements. This mod
-patches the `rarity` getter on each blueprint info type
+patches the `rarity` getter on every implementation of `IBlueprintInfo`
 (`BuildingFacadeInfo`, `ArtableInfo`, `ClothingItemInfo`,
-`BalloonArtistFacadeInfo`) to always return `PermitRarity.Universal`, the
+`BalloonArtistFacadeInfo`, `StickerBombFacadeInfo`, `EquippableFacadeInfo`,
+`MonumentPartInfo`) to always return `Database.PermitRarity.Universal`, the
 tier the game always treats as unlocked. From the game's perspective every
 blueprint is now a default, always-available one.
 
@@ -45,7 +47,9 @@ that setup routine.
 
 Requires the .NET SDK and a local Oxygen Not Included install (its
 `Assembly-CSharp.dll` and `0Harmony.dll` are needed to compile against, and
-are not distributed in this repo).
+are not distributed in this repo). The project targets .NET Framework 4.8 to
+match the game's `0Harmony.dll`; the 4.8 reference assemblies come from a
+NuGet package, so no Developer Pack install is required.
 
 ```bash
 dotnet build -p:ONIInstallDir="/path/to/OxygenNotIncluded"

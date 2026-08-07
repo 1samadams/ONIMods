@@ -6,3 +6,6 @@ obj/
 .vscode/
 *.dll
 !lib/**/*.dll
+
+# Staged deployable copy of the mod (dll + yamls) — build output, not source.
+mod/

@@ -6,9 +6,8 @@ Guidance for Claude Code (or other AI agents) working in this repository.
 
 A single-mod repo for *Oxygen Not Included* (ONI). The mod uses Harmony to
 patch the game's blueprint `rarity` getters so every Printing Pod blueprint
-(building facades, artables, clothing items, balloon artist facades) is
-treated as `PermitRarity.Universal` — i.e. always unlocked. See `README.md`
-for the player-facing explanation and install instructions.
+is treated as `PermitRarity.Universal` — i.e. always unlocked. See
+`README.md` for the player-facing explanation and install instructions.
 
 The mod folder *is* the repo root: `mod.yaml`, `mod_info.yaml`, and the
 built DLL sit side by side, matching how Klei's local-mods loader expects a
@@ -27,10 +26,16 @@ This means:
 - `dotnet build`/`dotnet restore` will fail in a sandbox or CI environment
   without a real ONI install available — that's expected, not a bug in the
   project file. Don't try to fix it by vendoring the DLLs.
-- You cannot fully compile or test changes in this environment. Reason
-  about correctness by reading the patch code and cross-referencing known
-  ONI class/member names (see below) rather than trusting a local build to
-  catch mistakes.
+- If a real install *is* present, build it. Where it isn't, reason about
+  correctness by reading the patch code and cross-referencing known ONI
+  class/member names (see below).
+
+To check a type or member name against the installed game without a
+decompiler, read `Assembly-CSharp.dll`'s metadata directly with
+`System.Reflection.Metadata` (`PEReader` + `GetMetadataReader`). Do **not**
+use `Assembly.ReflectionOnlyLoadFrom` — it silently drops types whose
+dependencies can't be resolved, so members appear to be missing when they
+are actually present.
 
 ## Class names are version-sensitive
 
@@ -40,12 +45,22 @@ suffix (e.g. `Blueprints_U53`) that gets renamed each time Klei ships a
 content update, which breaks patches targeting that specific class.
 
 This mod deliberately avoids that fragility by patching the `rarity`
-**property getter** on the stable info types instead
-(`BuildingFacadeInfo.rarity`, `ArtableInfo.rarity`, `ClothingItemInfo.rarity`,
-`BalloonArtistFacadeInfo.rarity`), all in the `Database` namespace. These
-getters are far less likely to be renamed than one-off setup-routine
-classes. If a future game update does rename or restructure one of these
-info types:
+**property getter** on the stable info types instead. These getters are far
+less likely to be renamed than one-off setup-routine classes.
+
+The patched types are the implementations of the `IBlueprintInfo` interface:
+`BuildingFacadeInfo`, `ArtableInfo`, `ClothingItemInfo`,
+`BalloonArtistFacadeInfo`, `StickerBombFacadeInfo`, `EquippableFacadeInfo`,
+and `MonumentPartInfo`. They live in the **global namespace**, not
+`Database` — only the `PermitRarity` enum is `Database.PermitRarity`, which
+is the sole reason `Patches.cs` has a `using Database;`.
+
+Harmony cannot patch the `IBlueprintInfo.rarity` interface member, so each
+implementation needs its own patch class. When checking coverage after a
+game update, enumerate the types implementing `IBlueprintInfo` rather than
+assuming the list above is still complete.
+
+If a future game update does rename or restructure one of these info types:
 
 1. Decompile the new `Assembly-CSharp.dll` (dotPeek/ILSpy/dnSpy) to find the
    new type/member name.
@@ -61,6 +76,12 @@ info types:
   pattern in `Patches.cs`: a `[HarmonyPatch(typeof(XInfo), nameof(XInfo.rarity), MethodType.Getter)]`
   class with a `Prefix` that sets `__result = PermitRarity.Universal;` and
   returns `false`.
+- Leave `TargetFramework` at `net48`. The game's shipped `0Harmony.dll`
+  targets 4.8; anything lower makes MSBuild silently *drop* every game
+  reference (MSB3274/MSB3275) and the build then fails with a wall of
+  misleading CS0246 "type or namespace not found" errors. The
+  `Microsoft.NETFramework.ReferenceAssemblies` package is there so this
+  builds without the 4.8 Developer Pack installed — don't remove it.
 - `UnlockAllBlueprintsMod.cs` is the `UserMod2` entry point Klei's mod
   loader calls; it should stay a thin `harmony.PatchAll()` call rather than
   accumulating logic.

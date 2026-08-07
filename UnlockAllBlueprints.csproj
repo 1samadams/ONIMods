@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net471</TargetFramework>
+    <!-- net48: the game's shipped 0Harmony.dll targets .NET Framework 4.8. A lower
+         target makes MSBuild silently drop every game reference (MSB3274/MSB3275). -->
+    <TargetFramework>net48</TargetFramework>
     <AssemblyName>UnlockAllBlueprints</AssemblyName>
     <RootNamespace>UnlockAllBlueprints</RootNamespace>
     <LangVersion>latest</LangVersion>
@@ -20,6 +22,12 @@
     <ONIInstallDir Condition="'$(ONIInstallDir)' == '' AND '$(OS)' == 'Windows_NT'">C:\Program Files (x86)\Steam\steamapps\common\OxygenNotIncluded</ONIInstallDir>
     <ONIManagedDir>$(ONIInstallDir)\OxygenNotIncluded_Data\Managed</ONIManagedDir>
   </PropertyGroup>
+
+  <!-- Supplies the 4.8 reference assemblies so building doesn't require the
+       .NET Framework 4.8 Developer Pack to be installed. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
