@@ -110,15 +110,11 @@ Facts behind the constants in `LumenLights.cs`:
   `"STRINGS.BUILDINGS.PREFABS.<ID>.NAME"` form is correct.
 - `UI.FormatAsLink` does **not** resolve from a mod assembly here. Plain names.
 
-## Art — reused kanims, tinted
-No custom `.kanim` pipeline. `LumenAppearance` applies
-`KBatchedAnimController.TintColour`, a per-symbol lens tint and an `animScale`
-multiplier, so five buildings sharing two Klei anims read as five fixtures.
+## Art (1 of 2) — choosing a kanim, and the landmines
+No custom `.kanim` pipeline; the fixtures reuse Klei's. This section is about
+*which* anim is safe to reuse. For how five buildings sharing two anims are told
+apart, see **Art (2 of 2)** further down.
 
-- The tint must be applied **at spawn, not at prefab-configure time**.
-  `TintColour` writes through to `batchInstanceData`, which does not exist until
-  the controller is batched, so setting it on the inactive prefab template is
-  silently dropped.
 - Only kanims driven by `LightController` are usable, because `LightController`
   plays the literal anim names `"on"` and `"off"`. **Not** `mercurylight_kanim` —
   the Mercury Ceiling Light has its own `MercuryLight` state machine with
@@ -149,7 +145,7 @@ to `LumenLights.FallbackAnim`, so a bad anim name costs one wrong-looking fixtur
 instead of a missing building. Keep that guard.
 
 ## No save-persisted state
-Same constraint as AutoMachines. `LumenMotionSensor` and `LumenTint` have no
+Same constraint as AutoMachines. No component this mod adds has any
 `[Serialize]` fields and are not `ISaveLoadable`, so they write nothing.
 `Operational.Flags` is not serialised either, so no stale flag survives removing
 the mod. The buildings themselves are of course new prefabs — a save containing
@@ -164,12 +160,16 @@ src/Lumen/Settings.cs                        config.json
 src/Lumen/LumenLight.cs                      the per-building record type
 src/Lumen/LumenLights.cs                     the five lights, as data
 src/Lumen/LumenStrings.cs                    string table registration
+src/Lumen/LumenOrientation.cs                Orientation -> the 3 Light2D aim fields
+src/Lumen/LumenCompat.cs                     is a rotation mod making cones aimable?
 src/Lumen/Buildings/LumenLightConfig.cs      one shared IBuildingConfig
 src/Lumen/Buildings/LumenBuildingConfigs.cs  the five concrete configs
 src/Lumen/Components/LumenMotionSensor.cs    the sensor
-src/Lumen/Components/LumenTint.cs            reused-kanim tinting
+src/Lumen/Components/LumenAimedLight.cs      applies aim on spawn and on rotate
+src/Lumen/Components/LumenAppearance.cs      tint, lens tint, size
 src/Lumen/Components/MinionPositions.cs      shared per-frame duplicant snapshot
 src/Lumen/Patches/RegisterLightsPatch.cs     tech + build menu
+src/Lumen/Patches/RotationPatches.cs         keep beam + preview aimed with sprite
 ```
 
 `LumenLightConfig` is abstract on purpose: `LoadGeneratedBuildings` enumerates
@@ -260,6 +260,15 @@ triggered and Panel Light stayed lit too long — both the sphere-vs-cone mismat
 **Play-test 3: all five confirmed working**, lighting the correct downward cone.
 The lit-cell rewrite is verified in-game.
 
+**Play-test 4:** confirmed the inverted preview disappears when Rotate Everything
+is removed, which is what identified it as a mod interaction rather than stock
+behaviour. Also confirmed the power overlay reads the fixture's *rating* while
+dark -- that is `WattsNeededWhenActive`, not live draw; `WattsUsed` short-circuits
+to `0f` when inactive, and the zero heat while dark corroborates it. Not a bug.
+
+**Unverified:** rotation (checklist 11-12), lens tinting and size (checklist 7).
+Those shipped after the last in-game test.
+
 ### SOLVED: inverted placement preview, and how aiming works
 Root cause, confirmed by decompiling `rotate_everything.dll` (Rotate Everything,
 Jarodamus Prime, Workshop 1715709940 -- no public source; decompile the installed
@@ -325,20 +334,26 @@ renderer for a bug that was never there. The Sun Lamp reproducing it proved only
 that the flip was not *Lumen-specific*. Rule out third-party patches, by
 decompiling them, before concluding anything is stock. The installed DLLs are
 right there under `mods/Steam/`.
-### Art: what is done, and the symbol-name blocker
-`LumenAppearance` (was `LumenTint`) applies two things at spawn:
 
-- `KBatchedAnimController.TintColour` — whole-sprite colour.
+## Art (2 of 2) — differentiating fixtures within one kanim
+`LumenAppearance` (was `LumenTint`) applies three things at spawn:
+
+- `KBatchedAnimController.TintColour` — the housing. All four ceiling fixtures
+  share one neutral steel value, so they read as a single product line.
+- `SetSymbolTint` over `LensSymbols` — the lens, which is what actually
+  distinguishes them. Symbol tints live on the controller instance rather than on
+  an animation, so they survive the on/off anim switch and apply once. Naming a
+  symbol a build lacks is a silent no-op.
 - `animScale` multiplier — size. Deliberately tracks `Range` (4 → 0.85, 8 → 1.0,
   12 → 1.2) so size is information, not decoration. `animScale` is read inside
   `GetTransformMatrix()` every render, so assigning at spawn is enough.
 
-Both must be applied at **spawn**: `TintColour` writes through to
+All must be applied at **spawn**: `TintColour` writes through to
 `batchInstanceData`, which does not exist on the inactive prefab template.
 
 Still colour-only between **Panel and Sentry** — same kanim, same range, so same
 size. That is honest rather than fixed with an invented size difference; they
-differ by tint, sensor reach and linger.
+differ by lens colour, sensor reach and linger.
 
 **Symbol names (dumped at runtime; NOT readable by decompiling).** These are the
 only two kanims the mod uses:
@@ -368,29 +383,57 @@ line rather than as the same lamp dyed four ways. Symbol tints live on the
 controller instance, not on an animation, so they survive the on/off anim switch
 and only need applying once. Naming a symbol a build lacks is a silent no-op.
 
-### Open: four fixtures share one silhouette
-With the Panel Light moved off the glass anim, four of five share
-`ceilinglight_kanim` and differ only by a whole-object `LumenTint`. Options, in
-increasing effort, all verified present on `KBatchedAnimController` unless noted:
+### Open: silhouette variety, and the facade question
+Four of five fixtures share `ceilinglight_kanim`. They are now differentiated by
+housing colour, lens colour and `animScale`, which is as far as that kanim goes —
+see the symbol table above for why (**one** body part). Panel and Sentry share a
+size and differ only by lens colour. This is a look-and-feel limit, not a defect.
 
-1. `SetSymbolTint(symbol, colour)` — recolour individual parts (lens vs housing)
-   instead of the whole sprite. Needs the kanim's symbol names, readable by
-   decompiling the build or by iterating symbols at runtime.
-2. `SetSymbolVisiblity(symbol, false)` (on `KAnimControllerBase`) — hide parts,
-   which genuinely changes the silhouette rather than just its colour.
-3. `animScale` (default `0.005f`) / `SetSymbolScale(symbol, scale)` — make a
-   fixture visibly larger or smaller from the same art.
-4. `SetSymbolOverride(...)` — graft a symbol from a *different* build onto this
-   one. The most powerful reuse option and the fiddliest.
-5. `sun_lamp_kanim` — a genuinely different base-game silhouette, but it is 2x4
-   and floor-mounted, so it changes that building's identity.
-6. Real custom kanims: Spriter + a kanim packer + `ModUtil.AddKAnim`. The only
+Remaining options, in increasing effort:
+
+1. `SetSymbolOverride(...)` — graft a symbol from a *different* build onto this
+   one. The most powerful reuse option and the fiddliest. Untried.
+2. Build a variant on `floorlamp_kanim`, which has seven separable parts
+   (`pole`, `shade`, `feet`, `cord`, `handle`, `beam`, `light`). Possibly flipped
+   to read as a hanging pendant; would need offset tuning. Untried.
+3. `sun_lamp_kanim` — a genuinely different base-game silhouette, but 2x4 and
+   floor-mounted, so it changes that building's identity.
+4. Real custom kanims: Spriter + a kanim packer + `ModUtil.AddKAnim`. The only
    route to art that is actually new.
 
-Not done — this is a look-and-feel decision, not a defect.
+#### Building facades — assessed, deliberately NOT done
+Asked whether Lumen fixtures should accept blueprint facades like vanilla lights.
+The mechanism is real and public: `Db.Get().BuildingFacades.Add(id, name, desc,
+rarity, prefabId, animFile, ...)`, and a facade is literally *a prefab ID plus an
+anim file*. `BuildingFacade` is already added to preview objects by
+`BuildingLoader.CreateBuildingPreview`. Facades are data-driven from
+`Blueprints.Get().all.buildingFacades`, so they cannot be enumerated by
+decompiling — it needs a runtime dump, same trick as the symbol names.
 
-The temporary `[Lumen] geometry` spawn logging has been removed now that
-play-test 3 passed. The mod logs only on load and on genuine problems.
+Not started, for three reasons:
+
+1. **Facades do not solve the art problem.** They are a chooser UI for art you
+   already have. Worth doing only if Klei authored several *light* facades whose
+   anim files we could point at — that would be the best art option available,
+   better than custom kanims, since it is Klei-drawn and already fits. Unknown
+   until someone dumps the facade list. **That check gates everything else.**
+2. **Permits are probably fatal.** Facades unlock through the Printing Pod and
+   achievements. Registering our own facade IDs creates permits that are in no
+   drop table, so on a normal save they may be permanently unobtainable — while
+   appearing to work fine for anyone running Unlock All Blueprints. A feature
+   that works only for the author is worse than no feature.
+3. **It would partly break the lens tinting.** A facade swaps the anim file, and
+   `generator_light_bloom` / `temp_base` almost certainly do not exist in it.
+   Missing symbols are a silent no-op, so fixtures would quietly lose their lens
+   colour and fall back to the housing tint.
+
+Also worth weighing: facades and permits are likelier to shift between game
+updates than anything this mod currently touches.
+
+Both temporary diagnostics -- the `[Lumen] geometry` spawn logging and the
+`[Lumen] symbols` kanim dump -- have been removed now that their results are
+recorded above. The mod logs only on load, on a detected rotation mod, and on
+genuine problems.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, "Lumen" listed in the Mods menu.
@@ -403,12 +446,20 @@ play-test 3 passed. The mod logs only on load and on genuine problems.
 5. Power overlay shows **0 W** while dark and the configured wattage while lit.
 6. A Duplicant working at a machine under a lit fixture shows the light work
    speed bonus status item.
-7. The five look visually distinct (tint applied) rather than three identical
-   pairs. If they all look untinted, `LumenTint` is running too early.
+7. The five look visually distinct: neutral steel housings, differently coloured
+   lenses, and the Spotlight visibly smaller / Floodlight visibly larger. All
+   untinted means `LumenAppearance` is running too early; correct housings but
+   no lens colour means the symbol names in `LensSymbols` are wrong.
 8. Save/load cycle works; the lights come back dark and re-trigger correctly.
 9. Set `"Enabled": false` for one light → it disappears from the build menu and
    the research node, and the rest still work.
 10. `Player.log` clean of Harmony errors and MISSING/STRINGS errors.
-11. Performance sanity: build ~50 of them and confirm no frame-time regression.
+11. With a rotation mod present: rotate a cone fixture sideways and confirm the
+    beam, the glow and the *trigger area* all follow -- a Duplicant standing in
+    the new beam must switch it on. That last part is the sensor-follows-beam
+    path and the least certain.
+12. The placement preview cone points the same way the fixture will. A vanilla
+    Sun Lamp previewing upward is expected and is not this mod.
+13. Performance sanity: build ~50 of them and confirm no frame-time regression.
     If there is one, the suspect is light grid churn from `SetFlag` edges, not
     the distance scan — raise `LingerSeconds`.

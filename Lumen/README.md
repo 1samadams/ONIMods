@@ -99,14 +99,27 @@ mod folder if it is not already there. Delete it to regenerate the defaults.
 
 ## Art
 
-These reuse Klei's `ceilinglight` and `floorlamp` animations with a per-building
-colour tint, rather than shipping custom `.kanim` files. Swapping in real custom
-art later is a one-line change per entry in `LumenLights.cs`.
+No custom `.kanim` files. The fixtures reuse Klei's `ceilinglight` and `floorlamp`
+animations and are told apart three ways:
 
-Only **base-game** anims are used. DLC-only anims are absent on installs without
-that DLC, and the game does not degrade gracefully — it throws while registering
-the building, and you lose the building entirely. The four ceiling fixtures
-therefore share one silhouette and are told apart by colour.
+- **Housing colour** — all four ceiling fixtures share one neutral steel body, so
+  they read as a single product line.
+- **Lens colour** — each fixture tints only its own lens symbols (amber, cool
+  white, cyan, green), which is what actually distinguishes them.
+- **Size** — an `animScale` multiplier that deliberately tracks the light's
+  range, so a fixture that reaches further looks bigger. Size is information, not
+  decoration.
+
+Only **base-game** anims are used. A DLC-only anim is absent on installs without
+that DLC and the game does not degrade gracefully — it throws while registering
+the building and you lose it entirely. That shipped as a bug once, when the Panel
+Light borrowed the Glass Ceiling Light's DLC5 anim.
+
+The honest limit: `ceilinglight_kanim` contains exactly **one** body part, so the
+four ceiling fixtures cannot be given different silhouettes without new art. The
+Panel and Sentry share a size and differ only by lens colour. `floorlamp_kanim`
+is far richer — seven separable parts — so any future part-swapping work belongs
+there.
 
 ## Compatibility
 
@@ -125,3 +138,53 @@ dotnet build src/Lumen/Lumen.csproj -c Release
 
 The build stages a ready-to-install folder at `dist/Lumen/` and tries to copy it
 into the game's Local mods folder.
+
+## How it works, and how that was established
+
+Every claim here was read out of the game's own assemblies with
+[ILSpy](https://github.com/icsharpcode/ILSpy) (`ilspycmd`) against build
+`744825`, not recalled. `Lumen/CLAUDE.md` carries the full engineering notes;
+this is the short version.
+
+**One flag does everything.** The sensor never touches `Light2D`, the animation
+or the power draw. It sets a single `Operational.Flag`, and Klei's own chain does
+the rest: a false flag makes `IsOperational` false → `SetActive(false)` →
+`EnergyConsumer.WattsUsed` returns literal `0f` → an `OperationalChanged` event
+that `Light2D` and `LightController` already react to. That is why "dark" means
+genuinely zero watts rather than a cosmetic off state.
+
+**The trigger area is the light itself.** The sensor asks
+`DiscreteShadowCaster.GetVisibleCells` which cells the fixture *would* light —
+a pure query that works while the light is off — and fires when a Duplicant
+stands in one. This replaced a plain radius, which was wrong in both directions:
+a sphere small enough not to catch people through walls never reached the floor
+below a ceiling mount, and one large enough to reach the floor fired constantly.
+It also happens to be the exact test `Workable` uses to grant the work speed
+bonus, so a lit Duplicant was necessarily already switched on.
+
+**Cones cannot aim in stock ONI.** `GetVisibleCells` scans a hardcoded downward
+octant pair for `LightShape.Cone` and never reads the direction it is given —
+only `ScanQuad` honours it. Rotation is therefore gated on a mod that changes
+that; see below.
+
+### Compatibility notes worth knowing
+
+**[Rotate Everything](https://steamcommunity.com/sharedfiles/filedetails/?id=1715709940)**
+(Jarodamus Prime) globally replaces `GetVisibleCells` so cones *do* honour their
+direction — which is what Lumen's rotation is built on. It also updates
+`LightShapePreview.direction` only for prefabs named `CeilingLight*`. Since that
+field defaults to `Direction.North` and no vanilla config ever sets it, every
+other cone light in the game — including the stock Sun Lamp — starts previewing
+as a cone aimed straight up. Lumen sets it explicitly, so its own previews are
+correct either way. If you see an upward preview cone on a *vanilla* light, that
+is where it comes from, and it is cosmetic.
+
+**[PLib](https://github.com/peterhaneve/ONIMods/tree/main/PLibLighting)**
+(Peter Han) is not a dependency, but its lighting module patches the same
+methods and was a useful reference for what is safe to touch.
+
+A diagnosis lesson recorded here because it cost real time: **a vanilla building
+is not a control when a mod patches lighting globally.** The inverted preview was
+initially written off as stock Klei behaviour because the vanilla Sun Lamp
+reproduced it. That only proved it was not Lumen-specific. Decompiling the
+installed third-party DLL took minutes and gave the real answer.
