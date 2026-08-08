@@ -10,8 +10,8 @@ solution, `ONIMods.sln`, builds them all.
 
 | Mod | Folder | What it does | Workshop |
 | --- | --- | --- | --- |
-| **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable in `config.json`. | <!-- TODO: Workshop link --> _not yet published_ |
-| **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | <!-- TODO: Workshop link --> _not yet published_ |
+| **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable in `config.json`. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
+| **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
 
 Both target `supportedContent: ALL` and mod `APIVersion: 2`, minimum game build
 `744825`.
