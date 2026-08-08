@@ -67,6 +67,27 @@ Then enable the mod from the in-game **Mods** menu and restart.
 > that, the build still succeeds and prints a warning — copy the staged `dist/`
 > folder across by hand.
 
+## Publishing to the Steam Workshop
+
+Upload `<Mod>/dist/<ModName>/` — the same staged folder you would install
+locally. **Not** `<Mod>/mod/`, which holds only source metadata.
+
+The game's mod loader scans the **top level** of the uploaded folder and counts
+just two things as content: files ending in `.dll` or `.po`, and directories
+named `strings`, `codex`, `elements`, `templates`, `worldgen`, `buildingfacades`
+or `anim`. `mod.yaml`, `mod_info.yaml` and `config.json` count for nothing, and
+the scan does not recurse — so a package missing its DLL, or one that wraps the
+mod in an extra parent folder, loads as empty and shows
+
+```
+<Mod Title> - No compatible mod found
+```
+
+in the Mods menu, with no way to enable it. That message always means "nothing
+recognisable in the folder"; a DLC or game-version mismatch reports
+*"Incompatible DLC configuration"* instead. Auto Machines shipped exactly this
+way once — see `AutoMachines/CLAUDE.md` for the full loader rules.
+
 ## Repository layout
 
 ```

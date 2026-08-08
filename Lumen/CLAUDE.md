@@ -248,6 +248,28 @@ the AutoMachines CLAUDE.md for the full explanation — it applies verbatim.
 On this machine the deploy currently **succeeds**, to
 `C:\Users\1sama\OneDrive\Documents\Klei\OxygenNotIncluded\mods\Local\Lumen`.
 
+### Workshop packaging — verified correct
+Checked against `KMod.Mod` at build `744825` after Auto Machines shipped a
+package the loader rejected with "No compatible mod found". **The full rules live
+in the AutoMachines CLAUDE.md** under *Packaging for the Workshop*; they apply
+verbatim. Lumen's result:
+
+| check | value | verdict |
+|---|---|---|
+| DLL at the archive's top level | `dist/Lumen/Lumen.dll` | correct — the only thing that makes the mod scan as non-empty |
+| `APIVersion` | `2` | correct; anything else with a DLL present is rejected as `OldAPI` |
+| `supportedContent` | `ALL` | loads on vanilla **and** Spaced Out (maps to no DLC restriction either way) |
+| `mod.yaml` | title, description, `staticID: ONI.Lumen` | correct |
+
+**Upload `Lumen/dist/Lumen/`, never `Lumen/mod/`.** The latter is source metadata
+with no DLL, and scans as empty — that is exactly how Auto Machines broke.
+
+One wart: `dist/Lumen/` also contains `Lumen Thumbnail-selection.png` (886 KB),
+which is not produced by `StageMod` and was dropped there by hand. The loader
+ignores it — PNG is not scanned content — but it ships to every subscriber. It is
+not needed in the mod folder; the Workshop thumbnail is supplied to the uploader
+separately.
+
 ## Status
 Compiles clean, zero warnings, deployed.
 

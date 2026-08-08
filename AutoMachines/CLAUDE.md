@@ -162,6 +162,95 @@ Diagnostic tell: if a write to Documents fails with `Could not find file` while 
 
 `mod.yaml` needs title, description, and staticID (e.g. `AutoMachines`).
 
+## Packaging for the Workshop — what the loader counts as "content"
+Applies to every mod in this repo, not just this one. All of it was read out of
+`KMod.Mod` and `DlcManager` at build `744825`.
+
+**Reported symptom:** a subscriber saw `Auto Machines - No compatible mod found`
+in the Mods menu, with no way to enable it, while the same code ran fine locally.
+
+### The three rejection messages are different, and say different things
+`ModsScreen` picks the label off `Mod.contentCompatability`, which
+`Mod.ScanContent()` sets. Read the message before theorising:
+
+| `contentCompatability` | Mods menu shows | Set when |
+|---|---|---|
+| `NoContent` | **"No compatible mod found"** | `ScanContentFromSource` found nothing countable in the archive |
+| `DoesntSupportDLCConfig` | "Incompatible DLC configuration" | `GetMostSuitableArchive()` returned null — wrong DLC, or a build filter miss |
+| `OldAPI` | "…old API…" | a DLL is present but `APIVersion != 2` |
+
+So **"No compatible mod found" is never a version or DLC problem.** It means the
+folder had nothing in it the loader recognises.
+
+### What counts as content — top level only, no recursion
+`ScanContentFromSource` calls `GetTopLevelItems` on the archive root and ORs
+together `AddFile` / `AddDirectory`. The complete list:
+
+- **files:** `*.dll` → `Content.DLL`, `*.po` → `Content.Translation`
+- **directories:** `strings`, `codex`, `elements`, `templates`, `worldgen`,
+  `buildingfacades`, `anim`
+
+Everything else contributes **zero** — including `mod.yaml`, `mod_info.yaml`,
+`config.json`, `.png` and `README`. A folder holding only those three metadata
+files scans as empty and is rejected with exactly the message above.
+
+It does not recurse. A DLL one folder deep — an upload that wrapped the mod in a
+parent directory — is invisible and fails identically.
+
+### The actual cause, and the trap
+`AutoMachines/mod/` and `AutoMachines/dist/AutoMachines/` are easy to confuse,
+and the wrong one contains precisely the files that count for nothing:
+
+| folder | contents | as an upload |
+|---|---|---|
+| `<Mod>/mod/` | `config.json`, `mod.yaml`, `mod_info.yaml` | **rejected, "No compatible mod found"** |
+| `<Mod>/dist/<Mod>/` | the above **+ the DLL** | correct |
+
+**Always upload `<Mod>/dist/<Mod>/`** — the folder `StageMod` builds — so the DLL
+lands at the root of what subscribers receive. `mod/` is source metadata only; it
+has never contained a DLL and never will.
+
+### `minimumSupportedBuild` is NOT enforced in our layout
+Worth knowing before blaming it for anything. The `minimumSupportedBuild <= 744825`
+filter lives **only** in the `archived_versions` branch of
+`GetMostSuitableArchive()`. When a mod has no `archived_versions/` folder — which
+is every mod here — the method returns the root archive from the
+`!file_source.Exists("archived_versions")` early-out, having never compared the
+build at all. So `minimumSupportedBuild: 744825` currently documents intent and
+does nothing. It starts mattering the moment an `archived_versions/` folder is
+added, which is also the only way to ship one package that serves several game
+builds.
+
+### `supportedContent: ALL` is deprecated but correct
+The property carries `[Obsolete("Use IHasDlcRestrictions interface instead")]`,
+and the parser logs "using supportedContent which has been deprecated" — via
+`ModDevLogWarning`, so it only appears in dev mode. It still works, and works
+universally: `ALL` maps to `requiredDlcIds = null` **and**
+`forbiddenDlcIds = null`, and `DlcManager.IsCorrectDlcSubscribed(null, null)`
+returns true on every DLC configuration (`IsAllContentSubscribed(null)` is true,
+`IsAnyContentSubscribed(null)` is false).
+
+The modern spelling is to drop `supportedContent` and leave both DLC arrays
+unset — identical behaviour, no warning. Not worth changing on a published mod.
+
+Full `PackagedModInfo` field set, for reference: `supportedContent` (obsolete),
+`requiredDlcIds`, `forbiddenDlcIds`, `lastWorkingBuild` (obsolete),
+`minimumSupportedBuild`, `APIVersion`, `version`.
+
+### Diagnosing this from a subscriber's log
+`Player.log` distinguishes the cases outright:
+
+- `No supported content for mod, skipping content.` → `NoContent`; the package is
+  missing its DLL. This is the one that was hit.
+- `No archive supports this game version, skipping content.` → DLC/archive
+  mismatch, a genuinely different problem.
+- `Successfully loaded from path 'root' with content 'DLL'` → correct.
+
+**Do not change `staticID` to fix a packaging problem.** It is the mod's identity
+in save files and mod lists; changing it on a published mod orphans existing
+subscribers' settings. The IDs in use are `ONI.AutoMachines`, `ONI.Lumen` and
+`unlock-all-blueprints` (inconsistent in style, deliberately left alone).
+
 ## Debugging
 Game log: `%USERPROFILE%\AppData\LocalLow\Klei\Oxygen Not Included\Player.log`
 
