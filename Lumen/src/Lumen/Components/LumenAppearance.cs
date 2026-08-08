@@ -78,6 +78,21 @@ namespace Lumen
     {
         private static readonly HashSet<string> dumped = new HashSet<string>();
 
+        /// <summary>
+        /// Dumps every kanim any Lumen fixture uses, without needing one to be built.
+        /// Called once the world is loaded, by which point the builds are parsed.
+        ///
+        /// There are only ever two distinct kanims across the five fixtures, and they
+        /// are known from the light table, so nothing has to be placed to see them.
+        /// </summary>
+        public static void DumpAllLumenAnims()
+        {
+            foreach (LumenLight light in LumenLights.All)
+            {
+                Dump(Assets.GetAnim(light.Anim));
+            }
+        }
+
         public static void DumpOnce(KBatchedAnimController controller)
         {
             KAnimFile[] files = controller.AnimFiles;
@@ -88,9 +103,16 @@ namespace Lumen
 
             foreach (KAnimFile file in files)
             {
+                Dump(file);
+            }
+        }
+
+        private static void Dump(KAnimFile file)
+        {
+            {
                 if (file == null || !dumped.Add(file.name))
                 {
-                    continue;
+                    return;
                 }
 
                 try
@@ -98,8 +120,12 @@ namespace Lumen
                     KAnim.Build build = file.GetData()?.build;
                     if (build?.symbols == null)
                     {
-                        UnityEngine.Debug.Log("[Lumen] symbols " + file.name + ": build not loaded.");
-                        continue;
+                        // Not fatal: the build may simply not be parsed yet. The
+                        // spawn-time path retries, and dumped only records names we
+                        // actually printed.
+                        UnityEngine.Debug.Log("[Lumen] symbols " + file.name + ": build not loaded yet.");
+                        dumped.Remove(file.name);
+                        return;
                     }
 
                     StringBuilder line = new StringBuilder();
@@ -124,6 +150,19 @@ namespace Lumen
                         "[Lumen] could not read symbols for " + file.name + ": " + e.Message);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Fires the temporary symbol dump once the world exists, so nothing has to be
+    /// built to see the symbol names. Delete alongside <see cref="LumenSymbolDump"/>.
+    /// </summary>
+    [HarmonyLib.HarmonyPatch(typeof(Game), "OnSpawn")]
+    public static class GameOnSpawnSymbolDumpPatch
+    {
+        public static void Postfix()
+        {
+            LumenSymbolDump.DumpAllLumenAnims();
         }
     }
 }
