@@ -44,9 +44,6 @@ namespace Lumen
         /// </summary>
         private static readonly List<int> scratchCells = new List<int>(512);
 
-        /// <summary>Building IDs already dumped by <see cref="LogGeometryOnce"/>.</summary>
-        private static readonly HashSet<string> loggedGeometry = new HashSet<string>();
-
         /// <summary>
         /// How often the lit-cell set is recomputed. Only walls being built or dug out
         /// can invalidate it, which is rare, so this is deliberately lazy rather than
@@ -95,7 +92,6 @@ namespace Lumen
             base.OnSpawn();
 
             RebuildLitCells();
-            LogGeometryOnce();
 
             // Start dark. Setting the flag also registers it, which is what makes
             // IsOperational false until a duplicant shows up.
@@ -210,32 +206,6 @@ namespace Lumen
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Dumps the geometry the game actually ended up with, once per building type.
-        /// litCells is the number the fixture would light where it currently stands --
-        /// a zero there means the sensor can never trigger, and points at the range or
-        /// the mounting rather than at the sensor.
-        /// </summary>
-        private void LogGeometryOnce()
-        {
-            KPrefabID prefabId = GetComponent<KPrefabID>();
-            string id = ((prefabId != null) ? prefabId.PrefabTag.Name : name);
-
-            if (!loggedGeometry.Add(id) || light2D == null)
-            {
-                return;
-            }
-
-            UnityEngine.Debug.Log(
-                "[Lumen] geometry " + id +
-                " shape=" + light2D.shape +
-                " range=" + light2D.Range.ToString("0.###") +
-                " offset=(" + light2D.Offset.x.ToString("0.###") + ", " + light2D.Offset.y.ToString("0.###") + ")" +
-                " litCells=" + litCells.Count +
-                " extraSensorRadius=" + extraSensorRadius.ToString("0.###") +
-                " linger=" + lingerSeconds.ToString("0.###") + "s");
         }
 
         public List<Descriptor> GetDescriptors(GameObject go)

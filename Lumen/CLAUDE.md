@@ -251,18 +251,34 @@ Compiles clean, zero warnings, deployed.
 **Play-test 1 (build 744825, no DLC5):** Panel Light failed to register — DLC-gated
 anim. Fixed and guarded.
 
-**Play-test 2:** Floodlight and Sentry confirmed working once placed. Floor Lamp
-confirmed working. Spotlight never triggered and Panel Light stayed lit too long
-— both traced to the sphere-vs-cone mismatch, now fixed by the lit-cell rewrite
-above. **That rewrite is not yet play-tested.**
+**Play-test 2:** Floodlight, Sentry and Floor Lamp working. Spotlight never
+triggered and Panel Light stayed lit too long — both the sphere-vs-cone mismatch.
 
-**Resolved, not a bug:** reported inverted light cones. Cone lights always project
-downward — `DiscreteShadowCaster.GetVisibleCells` hardcodes `Octant.S_SE`/`S_SW`
-for `Cone` and never reads a direction. The vanilla Sun Lamp shows the same
-inverted-looking *placement preview* and is correct once placed, so this is stock
-behaviour, not something Lumen introduced. Only `ScanQuad` honours
-`LightDirection`, so an up-shining fixture would need `LightShape.Quad` +
-`Direction.North` + a `Width`, as the Mercury Ceiling Light does.
+**Play-test 3: all five confirmed working**, lighting the correct downward cone.
+The lit-cell rewrite is verified in-game.
+
+### CLOSED as vanilla, do not "fix": inverted placement preview
+The cone shown while *placing* a light points the wrong way. The placed light is
+correct. Confirmed twice against the **vanilla Sun Lamp**, which behaves
+identically, so Lumen neither causes nor worsens it.
+
+Do not go looking for this in the Lumen code. The chain is provably correct:
+`LightShapePreview.Update` -> `LightGridManager.CreatePreview` ->
+`DiscreteShadowCaster.GetVisibleCells`, which for `LightShape.Cone` scans
+`Octant.S_SE`/`S_SW` — hardcoded downward, never reading a direction — and
+`ComputeFalloff` is symmetric for non-`Quad` shapes. So `previewLux` holds a
+correct downward cone and the flip is in Klei's preview *rendering*.
+
+Fixing it would mean patching that shared preview path, which changes vanilla
+lights too, and the mod's founding constraint is not to touch vanilla lighting.
+Left alone deliberately. Note the diagnosis went down a blind alley first by
+comparing against the Ceiling Light — ceiling-mounted, so a downward cone looks
+natural there and hides the artifact. The Sun Lamp is the right comparison
+because it is floor-mounted with its head 3.5 tiles up.
+
+Related: only `ScanQuad` honours `LightDirection`, so an up-shining fixture would
+need `LightShape.Quad` + `Direction.North` + a `Width`, as the Mercury Ceiling
+Light does. `Cone` cannot point up at any setting.
 
 Open cosmetic issue: with the Panel Light moved off the glass anim, four of the
 five fixtures now share `ceilinglight_kanim` and differ only by tint. The
@@ -270,9 +286,8 @@ remaining base-game option for real silhouette variety is `sun_lamp_kanim`, whic
 would mean making one of them a 2x4 floor unit. Not done — it changes that
 building's identity and was not asked for.
 
-**Temporary:** `LumenMotionSensor.LogGeometryOnce` prints one `[Lumen] geometry`
-line per building type at first spawn, including the lit-cell count. It exists to
-verify the rewrite; remove it once play-test 3 passes.
+The temporary `[Lumen] geometry` spawn logging has been removed now that
+play-test 3 passed. The mod logs only on load and on genuine problems.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, "Lumen" listed in the Mods menu.
