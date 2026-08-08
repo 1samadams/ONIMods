@@ -143,7 +143,15 @@ namespace Lumen
             preview.lux = light.Lux;
             preview.radius = light.Range;
             preview.shape = light.Shape;
-            preview.offset = new CellOffset((int)light.Offset.x, (int)light.Offset.y);
+
+            // The preview and the finished fixture must agree on which cell the beam
+            // starts from, and they arrive at it by different routes: LightShapePreview
+            // does Grid.OffsetCell(PosToCell(position), offset) in whole cells, while
+            // Light2D does Grid.PosToCell(position + Offset) in metres. Deriving the
+            // cell offset with PosToCell's own `(int)(y + 0.05f)` arithmetic makes them
+            // agree by construction rather than by luck. X needs no fudge: every Lumen
+            // offset nudges X by a fraction of a tile, never across a cell boundary.
+            preview.offset = new CellOffset((int)light.Offset.x, (int)(light.Offset.y + 0.05f));
 
             // The fix for "preview cone points up". LightShapePreview.direction
             // defaults to Direction.North (enum value 0), and no vanilla config ever
@@ -190,7 +198,11 @@ namespace Lumen
             // when the sensor computes which cells it covers.
             if (light.Aimable && LumenCompat.ConesAreDirectional)
             {
-                go.AddOrGet<LumenAimedLight>();
+                // Handed the fixture's mounting point rather than left to invent one:
+                // aiming leans away from this, and an emitter offset that wanders out
+                // of the fixture's cell takes the whole beam with it.
+                LumenAimedLight aimed = go.AddOrGet<LumenAimedLight>();
+                aimed.baseOffset = light.Offset;
             }
 
             // Added after Light2D: the sensor requires it, and derives its whole

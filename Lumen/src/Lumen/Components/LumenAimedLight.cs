@@ -20,6 +20,16 @@ namespace Lumen
         private Light2D light2D;
 #pragma warning restore 649
 
+        /// <summary>
+        /// The fixture's mounting point -- <see cref="LumenLight.Offset"/>, a
+        /// vanilla-derived value that already sits in the correct cell. Aiming leans
+        /// away from this point; it never replaces it, because replacing it is what
+        /// moved the beam a tile down. Set from
+        /// <c>LumenLightConfig.DoPostConfigureComplete</c> like every other piece of
+        /// prefab configuration, so it is not serialised.
+        /// </summary>
+        public Vector2 baseOffset;
+
         protected override void OnSpawn()
         {
             base.OnSpawn();
@@ -49,7 +59,7 @@ namespace Lumen
 
             light2D.LightDirection = direction;
             light2D.Direction = LumenOrientation.ToGlowDirection(direction);
-            light2D.Offset = LumenOrientation.ToOffset(direction);
+            light2D.Offset = LumenOrientation.ToOffset(direction, baseOffset, transform.GetPosition());
 
             if (isSpawned)
             {

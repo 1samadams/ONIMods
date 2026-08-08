@@ -72,6 +72,16 @@ namespace Lumen
         public float Angle;
         public int Lux;
         public Color LightColour;
+
+        /// <summary>
+        /// Where the emitter sits relative to the building's transform, which is at the
+        /// BOTTOM of the footprint -- hence the positive Y on every vanilla value.
+        ///
+        /// Not decoration. Light2D turns this into
+        /// <c>origin = Grid.PosToCell(position + Offset)</c>, the cell the whole beam is
+        /// cast from, so a value that lands outside the fixture's own cell moves the
+        /// light rather than the look of it. Take these from TUNING.LIGHT2D.
+        /// </summary>
         public Vector2 Offset;
 
         /// <summary>Decor is the vanilla per-building value, not something the mod invents.</summary>

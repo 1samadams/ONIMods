@@ -271,6 +271,11 @@ to `0f` when inactive, and the zero heat while dark corroborates it. Not a bug.
 correct (checklist 7, 11 and 12). The whole feature set is play-tested; nothing
 currently ships unverified.
 
+**Play-test 6:** every aimable fixture lit one tile low with its own cell dark,
+while the preview was correct. Root-caused to `Light2D.Offset` moving the emitter
+into the cell below — fixed and made unrepresentable; see the section below. Not
+yet re-tested in game.
+
 Remaining open items are choices, not defects: the four ceiling fixtures still
 share a silhouette (limited by `ceilinglight_kanim` having one body part), and
 building facades are assessed but deliberately not implemented -- both below.
@@ -310,10 +315,60 @@ light that looks right and lights the wrong tiles, or the reverse:
 |---|---|---|
 | `Light2D.LightDirection` | `DiscreteShadowCaster.Direction` | which **cells** are lit |
 | `Light2D.Direction` | `Vector2` | which way the **glow** is drawn (`LightBuffer`) |
-| `Light2D.Offset` | `Vector2` | where the emitter sits (cosmetic at our magnitudes) |
+| `Light2D.Offset` | `Vector2` | the **origin cell** the beam is cast from, *and* where the glow is drawn from |
 
 `Light2D.FullRefresh()` must follow, or the change sits unapplied in
 `pending_emitter_state`.
+
+### SOLVED: beam one tile low and a dark bulb — `Offset` is not cosmetic
+Play-test 6 reported it on every aimable fixture: the placement preview started
+the cone at the bulb, the built fixture started it one square lower and left its
+own cell at zero lumens.
+
+`Light2D.Offset`'s **setter** recomputes
+`origin = Grid.PosToCell(transform.position + Offset)`, and `origin` is the cell
+`DiscreteShadowCaster` casts the whole cone from. `LightBuffer.LateUpdate` also
+adds `Offset` to the glow position, so the field does both jobs — an earlier
+comment in `LumenOrientation` called it "purely cosmetic" and that false claim is
+exactly what caused this.
+
+Two facts make a downward offset fatal:
+
+- A building's transform sits at the **bottom** of its footprint, not the centre.
+  Every vanilla offset is positive-Y and proves it: `CEILINGLIGHT_OFFSET` +0.65 on
+  a 1x1, `FLOORLAMP_OFFSET` +1.5 on a 1x2, `SUNLAMP_OFFSET` +3.5 on a 2x4.
+- `Grid.PosToCell` is `(int)(pos.y + 0.05f)`, not a round-to-nearest.
+
+`LumenOrientation.ToOffset` returned `(0.05, -0.35)` for South, so a fixture at
+cell `(X, Y)` — transform `(X+0.5, Y)` — resolved to `(int)(Y - 0.30) = Y-1`.
+
+**Fix:** `ToOffset` now takes the fixture's configured mounting point
+(`LumenLight.Offset`, passed in via `LumenAimedLight.baseOffset`) plus the
+building's world position, **leans** `AimOffset` along the glow vector from there,
+and clamps the result into the box `PosToCell` maps to the mounting point's own
+cell. Aiming can no longer move the origin cell at all, whatever `AimOffset` is
+set to. Resulting offsets for a ceiling fixture, all resolving to cell `(X, Y)`:
+
+| Aim | Offset | `PosToCell` y |
+|---|---|---|
+| South | `(0.05, 0.30)` | `(int)(Y+0.35)` = Y |
+| North | `(0.05, 0.90)` | `(int)(Y+0.95)` = Y |
+| East | `(0.40, 0.65)` | `(int)(Y+0.70)` = Y |
+| West | `(-0.30, 0.65)` | `(int)(Y+0.70)` = Y |
+
+The Floor Lamp was never affected: it is a `Circle`, so it is not aimable, never
+gets a `LumenAimedLight`, and keeps vanilla's `(0.05, 1.5)`.
+
+The sensor needed no change — `RebuildLitCells` derives its origin from
+`light2D.Offset` the same way `Light2D` does, so the trigger area was wrong in
+exactly the same way and is now right for the same reason.
+
+**Lesson:** the preview and the fixture reach the origin cell by different
+routes — `LightShapePreview` does `Grid.OffsetCell(PosToCell(pos), offset)` in
+whole cells, `Light2D` does `Grid.PosToCell(pos + Offset)` in metres. They agreed
+on the preview path and disagreed on the built path, which is what made this look
+like a rendering bug. `DoPostConfigurePreview` now derives its `CellOffset` with
+`PosToCell`'s own `(int)(y + 0.05f)` so the two agree by construction.
 
 ### Rotation is gated on a third-party mod, deliberately
 `LumenCompat.ConesAreDirectional` checks whether the `rotate_everything` assembly
