@@ -266,8 +266,14 @@ behaviour. Also confirmed the power overlay reads the fixture's *rating* while
 dark -- that is `WattsNeededWhenActive`, not live draw; `WattsUsed` short-circuits
 to `0f` when inactive, and the zero heat while dark corroborates it. Not a bug.
 
-**Unverified:** rotation (checklist 11-12), lens tinting and size (checklist 7).
-Those shipped after the last in-game test.
+**Play-test 5: everything verified in-game.** Lens tinting, size differentiation,
+4-direction rotation, the placement preview and the light itself all confirmed
+correct (checklist 7, 11 and 12). The whole feature set is play-tested; nothing
+currently ships unverified.
+
+Remaining open items are choices, not defects: the four ceiling fixtures still
+share a silhouette (limited by `ceilinglight_kanim` having one body part), and
+building facades are assessed but deliberately not implemented -- both below.
 
 ### SOLVED: inverted placement preview, and how aiming works
 Root cause, confirmed by decompiling `rotate_everything.dll` (Rotate Everything,
