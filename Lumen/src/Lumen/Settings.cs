@@ -8,11 +8,14 @@ namespace Lumen
     public class LightSettings
     {
         /// <summary>
-        /// When false the building is still registered with the game, but is not added
-        /// to the build menu or to any tech, so it cannot be built. It has to stay
-        /// registered: GeneratedBuildings enumerates config types out of the assembly
-        /// and there is no supported way to opt a type out of that sweep. Buildings
-        /// already placed in an existing save keep working.
+        /// When false the building is marked BuildingDef.Deprecated and is added to
+        /// neither a plan category nor a tech, which is the game's own way of saying
+        /// "registered but not available" -- it gets GameTags.DeprecatedContent and
+        /// BuildingDef.PostProcess skips creating a TechItem for it.
+        ///
+        /// It has to stay registered: GeneratedBuildings enumerates config types out
+        /// of the assembly and there is no supported way to opt a type out of that
+        /// sweep. Buildings already placed in an existing save keep working.
         /// </summary>
         public bool Enabled = true;
 

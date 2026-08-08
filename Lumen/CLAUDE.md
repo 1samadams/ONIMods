@@ -221,9 +221,12 @@ silently reinstating the broken behaviour — Newtonsoft drops unknown fields.
 2. **No status item** explaining *why* an unlit fixture is non-operational. The
    dark animation is the only feedback. A custom `StatusItem` would need its own
    string registration; deferred.
-3. **Disabling a light in `config.json` still registers the prefab**, it just
-   never reaches the build menu or a tech. `LoadGeneratedBuildings` sweeps the
-   assembly for config types and there is no supported opt-out.
+3. **Disabling a light in `config.json` still registers the prefab.**
+   `LoadGeneratedBuildings` sweeps the assembly for config types and there is no
+   supported opt-out. It is made unreachable three ways instead, the first being
+   the game's own mechanism for this: `BuildingDef.Deprecated = true` (which tags
+   the prefab `GameTags.DeprecatedContent` and makes `BuildingDef.PostProcess`
+   skip `AddTechItem`), plus no plan category and no tech entry.
 4. **No logic port.** The Sentry was sketched with an automation output that goes
    green on detection. Dropped from v1 to keep the API surface small; it would be
    `def.LogicOutputPorts` plus a `LogicPorts.SendSignal` call in the sensor.
@@ -269,6 +272,13 @@ Do not go looking for this in the Lumen code. The chain is provably correct:
 `ComputeFalloff` is symmetric for non-`Quad` shapes. So `previewLux` holds a
 correct downward cone and the flip is in Klei's preview *rendering*.
 
+The blueprint was also ruled out as a cause: `BuildingLoader.CreateBuildingPreview`
+puts only the `"place"` anim and whatever `DoPostConfigurePreview` adds onto the
+preview object — **no `Light2D`** — so the `LightBuffer` shader path that does
+read `Direction`/`Angle` is not involved in a preview at all. Play-testing also
+reports the preview cone is *sized* correctly, which corroborates that the cells
+are right and only their drawn orientation is flipped.
+
 Fixing it would mean patching that shared preview path, which changes vanilla
 lights too, and the mod's founding constraint is not to touch vanilla lighting.
 Left alone deliberately. Note the diagnosis went down a blind alley first by
@@ -280,11 +290,26 @@ Related: only `ScanQuad` honours `LightDirection`, so an up-shining fixture woul
 need `LightShape.Quad` + `Direction.North` + a `Width`, as the Mercury Ceiling
 Light does. `Cone` cannot point up at any setting.
 
-Open cosmetic issue: with the Panel Light moved off the glass anim, four of the
-five fixtures now share `ceilinglight_kanim` and differ only by tint. The
-remaining base-game option for real silhouette variety is `sun_lamp_kanim`, which
-would mean making one of them a 2x4 floor unit. Not done — it changes that
-building's identity and was not asked for.
+### Open: four fixtures share one silhouette
+With the Panel Light moved off the glass anim, four of five share
+`ceilinglight_kanim` and differ only by a whole-object `LumenTint`. Options, in
+increasing effort, all verified present on `KBatchedAnimController` unless noted:
+
+1. `SetSymbolTint(symbol, colour)` — recolour individual parts (lens vs housing)
+   instead of the whole sprite. Needs the kanim's symbol names, readable by
+   decompiling the build or by iterating symbols at runtime.
+2. `SetSymbolVisiblity(symbol, false)` (on `KAnimControllerBase`) — hide parts,
+   which genuinely changes the silhouette rather than just its colour.
+3. `animScale` (default `0.005f`) / `SetSymbolScale(symbol, scale)` — make a
+   fixture visibly larger or smaller from the same art.
+4. `SetSymbolOverride(...)` — graft a symbol from a *different* build onto this
+   one. The most powerful reuse option and the fiddliest.
+5. `sun_lamp_kanim` — a genuinely different base-game silhouette, but it is 2x4
+   and floor-mounted, so it changes that building's identity.
+6. Real custom kanims: Spriter + a kanim packer + `ModUtil.AddKAnim`. The only
+   route to art that is actually new.
+
+Not done — this is a look-and-feel decision, not a defect.
 
 The temporary `[Lumen] geometry` spawn logging has been removed now that
 play-test 3 passed. The mod logs only on load and on genuine problems.

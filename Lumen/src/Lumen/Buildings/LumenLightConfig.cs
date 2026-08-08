@@ -64,6 +64,22 @@ namespace Lumen
             def.ViewMode = OverlayModes.Light.ID;
             def.AudioCategory = "Metal";
 
+            if (!Settings.Instance.IsEnabled(light))
+            {
+                // The game has its own concept for "registered but not available",
+                // and it does exactly what a disabled light needs:
+                //   BuildingConfigManager.RegisterBuilding tags the prefab
+                //     GameTags.DeprecatedContent
+                //   BuildingDef.PostProcess skips AddTechItem entirely (it is
+                //     guarded by `if (!Deprecated)`)
+                // Combined with LoadGeneratedBuildingsPatch not adding it to a plan
+                // category or a tech, the building becomes genuinely unreachable
+                // rather than merely unlisted. It still has to register at all:
+                // GeneratedBuildings sweeps the assembly for IBuildingConfig types
+                // and there is no supported way to opt a type out of that sweep.
+                def.Deprecated = true;
+            }
+
             return def;
         }
 
