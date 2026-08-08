@@ -180,8 +180,9 @@ namespace Lumen
             // by making IsOperational false, which this reacts to on its own.
             go.AddOrGetDef<LightController.Def>();
 
-            LumenTint tint = go.AddOrGet<LumenTint>();
-            tint.colour = light.Tint;
+            LumenAppearance appearance = go.AddOrGet<LumenAppearance>();
+            appearance.colour = light.Tint;
+            appearance.animScaleMultiplier = (light.AnimScale > 0f) ? light.AnimScale : 1f;
 
             // Added before the sensor so that, at spawn, the beam is already aimed
             // when the sensor computes which cells it covers.

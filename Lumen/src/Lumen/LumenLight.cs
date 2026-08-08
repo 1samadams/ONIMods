@@ -39,6 +39,16 @@ namespace Lumen
         /// <summary>Colour multiplied over the reused kanim so each light reads distinct.</summary>
         public Color32 Tint;
 
+        /// <summary>
+        /// Size multiplier on the reused kanim, 1 being vanilla size.
+        ///
+        /// Deliberately tracks <see cref="Range"/>: a fixture that lights further
+        /// looks bigger, so the size is information rather than decoration. It is also
+        /// the only silhouette difference available without custom art or knowledge of
+        /// the kanim's internal symbol names.
+        /// </summary>
+        public float AnimScale;
+
         // --- Light2D emitter settings ---
         public LightShape Shape;
         public float Range;

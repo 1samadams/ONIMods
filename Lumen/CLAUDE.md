@@ -325,6 +325,34 @@ renderer for a bug that was never there. The Sun Lamp reproducing it proved only
 that the flip was not *Lumen-specific*. Rule out third-party patches, by
 decompiling them, before concluding anything is stock. The installed DLLs are
 right there under `mods/Steam/`.
+### Art: what is done, and the symbol-name blocker
+`LumenAppearance` (was `LumenTint`) applies two things at spawn:
+
+- `KBatchedAnimController.TintColour` — whole-sprite colour.
+- `animScale` multiplier — size. Deliberately tracks `Range` (4 → 0.85, 8 → 1.0,
+  12 → 1.2) so size is information, not decoration. `animScale` is read inside
+  `GetTransformMatrix()` every render, so assigning at spawn is enough.
+
+Both must be applied at **spawn**: `TintColour` writes through to
+`batchInstanceData`, which does not exist on the inactive prefab template.
+
+Still colour-only between **Panel and Sentry** — same kanim, same range, so same
+size. That is honest rather than fixed with an invented size difference; they
+differ by tint, sensor reach and linger.
+
+**The blocker for anything finer.** `SetSymbolTint`, `SetSymbolVisiblity`,
+`SetSymbolScale` and `SetSymbolOverride` address parts of a sprite by symbol
+name, and those names live in the binary build file — `KAnim.Build.symbols`,
+each a `Symbol` with a `KAnimHashedString hash`. They are **not** readable by
+decompiling Assembly-CSharp. `LumenSymbolDump` (temporary, in
+`LumenAppearance.cs`) logs them once per kanim at first spawn.
+
+If the dump prints readable names, record them here and per-symbol tinting
+becomes straightforward. If it prints numbers, HashCache does not know the
+strings and symbols must be identified by tinting them one at a time and looking.
+Either way the hash is what the setters take, so the dump is usable regardless.
+**Delete `LumenSymbolDump` once the names are recorded here.**
+
 ### Open: four fixtures share one silhouette
 With the Panel Light moved off the glass anim, four of five share
 `ceilinglight_kanim` and differ only by a whole-object `LumenTint`. Options, in
