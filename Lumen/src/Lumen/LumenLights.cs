@@ -43,7 +43,7 @@ namespace Lumen
             Offset = CeilingOffset,
             Decor = BUILDINGS.DECOR.NONE,
             Watts = 1f,
-            SensorRadius = 4f,
+            ExtraSensorRadius = 0f,
             LingerSeconds = 5f,
         };
 
@@ -74,7 +74,7 @@ namespace Lumen
             Offset = CeilingOffset,
             Decor = BUILDINGS.DECOR.BONUS.TIER1,
             Watts = 1f,
-            SensorRadius = 8f,
+            ExtraSensorRadius = 0f,
             LingerSeconds = 5f,
         };
 
@@ -101,7 +101,7 @@ namespace Lumen
             Offset = CeilingOffset,
             Decor = BUILDINGS.DECOR.NONE,
             Watts = 1f,
-            SensorRadius = 12f,
+            ExtraSensorRadius = 0f,
             LingerSeconds = 8f,
         };
 
@@ -128,7 +128,7 @@ namespace Lumen
             Offset = FloorOffset,
             Decor = BUILDINGS.DECOR.BONUS.TIER1,
             Watts = 1f,
-            SensorRadius = 5f,
+            ExtraSensorRadius = 0f,
             LingerSeconds = 5f,
         };
 
@@ -156,7 +156,7 @@ namespace Lumen
             Offset = CeilingOffset,
             Decor = BUILDINGS.DECOR.NONE,
             Watts = 1f,
-            SensorRadius = 16f,
+            ExtraSensorRadius = 12f,
             LingerSeconds = 10f,
         };
 

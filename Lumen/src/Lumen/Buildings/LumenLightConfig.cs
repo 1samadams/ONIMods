@@ -151,8 +151,10 @@ namespace Lumen
             LumenTint tint = go.AddOrGet<LumenTint>();
             tint.colour = light.Tint;
 
+            // Added after Light2D: the sensor requires it, and derives its whole
+            // trigger area from the light's own range and shape.
             LumenMotionSensor sensor = go.AddOrGet<LumenMotionSensor>();
-            sensor.sensorRadius = Settings.Instance.SensorRadiusFor(light);
+            sensor.extraSensorRadius = Settings.Instance.ExtraSensorRadiusFor(light);
             sensor.lingerSeconds = Settings.Instance.LingerSecondsFor(light);
         }
     }

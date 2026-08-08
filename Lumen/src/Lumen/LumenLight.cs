@@ -54,11 +54,15 @@ namespace Lumen
         public float Watts;
 
         /// <summary>
-        /// Default radius, in cells, within which a duplicant switches the light on.
-        /// Usually equal to <see cref="Range"/> -- the Sentry deliberately exceeds it
-        /// so it lights a corridor before anyone walks into it.
+        /// Extra straight-line detection reach *beyond* the area the fixture lights,
+        /// in tiles. Zero for everything but the Sentry.
+        ///
+        /// Zero does not mean "no sensor". The sensor's baseline is the fixture's own
+        /// lit area, computed from <see cref="Range"/> and <see cref="Shape"/> by the
+        /// game's shadow caster, so it needs no tuning and cannot drift out of step
+        /// with the light. This field only exists for the Sentry's early warning.
         /// </summary>
-        public float SensorRadius;
+        public float ExtraSensorRadius;
 
         /// <summary>Default seconds the light stays on after the last duplicant leaves.</summary>
         public float LingerSeconds;

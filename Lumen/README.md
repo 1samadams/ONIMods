@@ -15,16 +15,25 @@ still costs 10 W.
 
 ## The lights
 
-| Building | Size | Mount | Light | Range | Sensor | Stays lit | Materials |
+| Building | Size | Mount | Light | Range | Extra sensing | Stays lit | Materials |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Lumen Spotlight** | 1×1 | Ceiling | Cone, 1800 lux | 4 | 4 tiles | 5 s | 25 kg metal |
-| **Lumen Panel Light** | 1×1 | Ceiling | Cone, 1800 lux | 8 | 8 tiles | 5 s | 50 kg glass |
-| **Lumen Floodlight** | 1×1 | Ceiling | Cone, 2400 lux | 12 | 12 tiles | 8 s | 100 kg refined metal |
-| **Lumen Floor Lamp** | 1×2 | Floor | Circle, 1400 lux | 5 | 5 tiles | 5 s | 50 kg metal |
-| **Lumen Sentry Light** | 1×1 | Ceiling | Cone, 1800 lux | 8 | **16 tiles** | 10 s | 100 kg refined metal |
+| **Lumen Spotlight** | 1×1 | Ceiling | Cone, 1800 lux | 4 | — | 5 s | 25 kg metal |
+| **Lumen Panel Light** | 1×1 | Ceiling | Cone, 1800 lux | 8 | — | 5 s | 50 kg glass |
+| **Lumen Floodlight** | 1×1 | Ceiling | Cone, 2400 lux | 12 | — | 8 s | 100 kg refined metal |
+| **Lumen Floor Lamp** | 1×2 | Floor | Circle, 1400 lux | 5 | — | 5 s | 50 kg metal |
+| **Lumen Sentry Light** | 1×1 | Ceiling | Cone, 1800 lux | 8 | **+12 tiles** | 10 s | 100 kg refined metal |
 
-The Sentry deliberately senses far beyond what it lights, so a corridor is
-already bright by the time anyone walks into it.
+**A fixture lights up when a Duplicant stands somewhere it would actually
+illuminate** — no separate radius to tune, and no way for the sensor to drift out
+of step with the beam. The trigger area is computed with the same shadow caster
+the light grid uses, so it follows the cone's real shape and respects walls.
+
+That is also exactly the condition the game uses to grant the work speed bonus,
+which reads the light level of the tile the worker is standing in. If a fixture
+lights a Duplicant, it was already on.
+
+The Sentry is the one exception: it additionally senses in a plain 12-tile radius
+beyond its beam, ignoring walls, so a corridor is bright before anyone arrives.
 
 All five appear under **Furniture → Lights** and are unlocked by the
 **Logic Control** research node — the same one that gives you the Duplicant
@@ -52,7 +61,7 @@ omit one and the building's default is used.
 ```json
 {
   "Lights": {
-    "LumenSpotlight": { "Enabled": true, "Watts": 1.0, "SensorRadius": 4.0, "LingerSeconds": 5.0 }
+    "LumenSpotlight": { "Enabled": true, "Watts": 1.0, "ExtraSensorRadius": 0.0, "LingerSeconds": 5.0 }
   }
 }
 ```
@@ -60,8 +69,14 @@ omit one and the building's default is used.
 - `Enabled` — `false` hides the building from the build menu and the research
   tree. Copies already placed in a save keep working.
 - `Watts` — power draw while lit. Zero while dark, regardless of this value.
-- `SensorRadius` — distance in tiles at which a Duplicant switches it on.
+  Self-heat scales with it, so raising this does not buy free cooling.
+- `ExtraSensorRadius` — detection reach *beyond* the lit beam, in tiles. `0` means
+  the fixture triggers strictly on what it lights, which is what you usually
+  want. Raise it to make a fixture anticipate arrivals, as the Sentry does.
 - `LingerSeconds` — how long it stays lit after the last Duplicant leaves.
+
+> Earlier versions had a `SensorRadius` field that described a plain sphere around
+> the fixture. It is gone, and files still using it fall back to the new defaults.
 
 Unknown building names are ignored with a warning in `Player.log`. A malformed
 file falls back to defaults rather than stopping the mod from loading.

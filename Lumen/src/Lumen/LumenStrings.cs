@@ -11,11 +11,10 @@ namespace Lumen
     public static class LumenStrings
     {
         public const string SensorDescriptor =
-            "Motion activated: {0:0} tile radius";
+            "Motion activated: lights when a Duplicant enters its beam, and for {0:0} seconds after";
 
-        public const string SensorDescriptorTooltip =
-            "Lights only while a Duplicant is within {0:0} tiles, and for {1:0} seconds after " +
-            "the last one leaves. Draws no power at all while dark.";
+        public const string SensorDescriptorExtended =
+            "Motion activated: detects Duplicants up to {0:0} tiles away, and stays lit {1:0} seconds after";
 
         public static void Register()
         {

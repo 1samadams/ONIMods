@@ -4,8 +4,9 @@ using UnityEngine;
 namespace Lumen
 {
     /// <summary>
-    /// Switches a Lumen light on while a duplicant is within <see cref="sensorRadius"/>
-    /// and off again <see cref="lingerSeconds"/> after the last one leaves.
+    /// Switches a Lumen light on while a duplicant is standing somewhere the light
+    /// would actually illuminate, and off again <see cref="lingerSeconds"/> after the
+    /// last one leaves.
     ///
     /// It does this by driving one <see cref="Operational.Flag"/> rather than by
     /// touching Light2D, the animation or the power draw directly. That single flag is
@@ -37,25 +38,64 @@ namespace Lumen
         private static readonly Operational.Flag OccupiedFlag =
             new Operational.Flag("lumen_occupied", Operational.Flag.Type.Requirement);
 
+        /// <summary>
+        /// Scratch buffer for <see cref="DiscreteShadowCaster.GetVisibleCells"/>.
+        /// Static and reused: rebuilding lit cells must not allocate.
+        /// </summary>
+        private static readonly List<int> scratchCells = new List<int>(512);
+
+        /// <summary>Building IDs already dumped by <see cref="LogGeometryOnce"/>.</summary>
+        private static readonly HashSet<string> loggedGeometry = new HashSet<string>();
+
+        /// <summary>
+        /// How often the lit-cell set is recomputed. Only walls being built or dug out
+        /// can invalidate it, which is rare, so this is deliberately lazy rather than
+        /// hooked into the solid-change partitioner.
+        /// </summary>
+        private const float LitCellRefreshSeconds = 5f;
+
         // Configured from LumenLightConfig.DoPostConfigureComplete. Plain public
         // fields, deliberately not [Serialize]: they are prefab configuration, so
         // they come back from the building definition on every load.
-        public float sensorRadius = 8f;
+
+        /// <summary>
+        /// Extra straight-line reach *beyond* the lit area, in tiles. Zero means the
+        /// fixture triggers strictly on what it lights, which is what every Lumen
+        /// light except the Sentry wants. The Sentry sets this above zero on purpose,
+        /// so it sees duplicants coming and lights the corridor before they arrive.
+        /// </summary>
+        public float extraSensorRadius;
+
         public float lingerSeconds = 5f;
 
+#pragma warning disable 649
         // Injected by KMonoBehaviour's attribute scan at spawn, which the compiler
         // cannot see -- hence the disabled "never assigned" warning.
-#pragma warning disable 649
         [MyCmpReq]
         private Operational operational;
+
+        [MyCmpReq]
+        private Light2D light2D;
 #pragma warning restore 649
 
+        /// <summary>
+        /// The cells this fixture would light if it were on. Computed with the same
+        /// shadow caster the light grid itself uses, so it accounts for walls and for
+        /// the cone's real shape -- and it works while the light is off, which is the
+        /// state we need to decide out of.
+        /// </summary>
+        private readonly HashSet<int> litCells = new HashSet<int>();
+
+        private float sinceLitCellRefresh = float.MaxValue;
         private float lingerRemaining;
         private bool occupied;
 
         protected override void OnSpawn()
         {
             base.OnSpawn();
+
+            RebuildLitCells();
+            LogGeometryOnce();
 
             // Start dark. Setting the flag also registers it, which is what makes
             // IsOperational false until a duplicant shows up.
@@ -66,9 +106,15 @@ namespace Lumen
 
         public void Sim200ms(float dt)
         {
-            bool duplicantNearby = IsDuplicantNearby();
+            sinceLitCellRefresh += dt;
+            if (sinceLitCellRefresh >= LitCellRefreshSeconds)
+            {
+                RebuildLitCells();
+            }
 
-            if (duplicantNearby)
+            bool duplicantPresent = IsDuplicantPresent();
+
+            if (duplicantPresent)
             {
                 lingerRemaining = lingerSeconds;
             }
@@ -77,7 +123,7 @@ namespace Lumen
                 lingerRemaining -= dt;
             }
 
-            bool shouldBeLit = duplicantNearby || lingerRemaining > 0f;
+            bool shouldBeLit = duplicantPresent || lingerRemaining > 0f;
             if (shouldBeLit == occupied)
             {
                 return;
@@ -90,19 +136,74 @@ namespace Lumen
             operational.SetFlag(OccupiedFlag, shouldBeLit);
         }
 
-        private bool IsDuplicantNearby()
+        /// <summary>
+        /// Asks the game which cells this fixture would light.
+        ///
+        /// This replaced a plain distance check, which was wrong in both directions:
+        /// the sensor described a sphere around the fixture while the light describes
+        /// a downward cone. A radius small enough not to catch duplicants sideways
+        /// through a wall never reached the floor underneath, and one large enough to
+        /// reach the floor fired constantly on people it was not lighting.
+        ///
+        /// Using the shadow caster removes the guesswork: the trigger condition is now
+        /// exactly "this duplicant would be lit". That also lines the mod up with the
+        /// work speed bonus, which Workable grants on Grid.LightIntensity at
+        /// Grid.PosToCell(worker.gameObject) -- the same cell this tests.
+        /// </summary>
+        private void RebuildLitCells()
+        {
+            sinceLitCellRefresh = 0f;
+            litCells.Clear();
+
+            if (light2D == null)
+            {
+                return;
+            }
+
+            int origin = Grid.PosToCell(transform.GetPosition() + (Vector3)light2D.Offset);
+            if (!Grid.IsValidCell(origin))
+            {
+                return;
+            }
+
+            scratchCells.Clear();
+            DiscreteShadowCaster.GetVisibleCells(
+                origin,
+                scratchCells,
+                (int)light2D.Range,
+                light2D.Width,
+                light2D.LightDirection,
+                light2D.shape);
+
+            for (int i = 0; i < scratchCells.Count; i++)
+            {
+                litCells.Add(scratchCells[i]);
+            }
+        }
+
+        private bool IsDuplicantPresent()
         {
             Vector3 here = transform.GetPosition();
-            float radiusSq = sensorRadius * sensorRadius;
+            float extraSq = extraSensorRadius * extraSensorRadius;
+            bool hasExtraReach = extraSensorRadius > 0f;
 
             List<Vector3> minions = MinionPositions.Get();
             for (int i = 0; i < minions.Count; i++)
             {
-                // Straight-line distance, so a duplicant on the far side of a wall
-                // still trips the sensor. Accepted for now: a real line-of-sight test
-                // would need the lit-cell set, which does not exist while the light
-                // is off -- the state we are trying to leave.
-                if ((minions[i] - here).sqrMagnitude <= radiusSq)
+                Vector3 position = minions[i];
+
+                // The duplicant's own cell is their feet, which is also the cell the
+                // game reads for the light work speed bonus.
+                int cell = Grid.PosToCell(position);
+                if (Grid.IsValidCell(cell) && litCells.Contains(cell))
+                {
+                    return true;
+                }
+
+                // Sentry-style early warning. Deliberately a raw straight-line radius
+                // that ignores walls: the point is to notice someone approaching from
+                // outside the lit area.
+                if (hasExtraReach && (position - here).sqrMagnitude <= extraSq)
                 {
                     return true;
                 }
@@ -111,13 +212,41 @@ namespace Lumen
             return false;
         }
 
+        /// <summary>
+        /// Dumps the geometry the game actually ended up with, once per building type.
+        /// litCells is the number the fixture would light where it currently stands --
+        /// a zero there means the sensor can never trigger, and points at the range or
+        /// the mounting rather than at the sensor.
+        /// </summary>
+        private void LogGeometryOnce()
+        {
+            KPrefabID prefabId = GetComponent<KPrefabID>();
+            string id = ((prefabId != null) ? prefabId.PrefabTag.Name : name);
+
+            if (!loggedGeometry.Add(id) || light2D == null)
+            {
+                return;
+            }
+
+            UnityEngine.Debug.Log(
+                "[Lumen] geometry " + id +
+                " shape=" + light2D.shape +
+                " range=" + light2D.Range.ToString("0.###") +
+                " offset=(" + light2D.Offset.x.ToString("0.###") + ", " + light2D.Offset.y.ToString("0.###") + ")" +
+                " litCells=" + litCells.Count +
+                " extraSensorRadius=" + extraSensorRadius.ToString("0.###") +
+                " linger=" + lingerSeconds.ToString("0.###") + "s");
+        }
+
         public List<Descriptor> GetDescriptors(GameObject go)
         {
+            string text = ((extraSensorRadius > 0f)
+                ? string.Format(LumenStrings.SensorDescriptorExtended, extraSensorRadius, lingerSeconds)
+                : string.Format(LumenStrings.SensorDescriptor, lingerSeconds));
+
             return new List<Descriptor>
             {
-                new Descriptor(
-                    string.Format(LumenStrings.SensorDescriptor, sensorRadius, lingerSeconds),
-                    string.Format(LumenStrings.SensorDescriptorTooltip, sensorRadius, lingerSeconds)),
+                new Descriptor(text, text),
             };
         }
     }

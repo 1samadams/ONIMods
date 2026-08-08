@@ -19,7 +19,15 @@ namespace Lumen
         /// <summary>Null means "use the building's default".</summary>
         public float? Watts;
 
-        public float? SensorRadius;
+        /// <summary>
+        /// Extra detection reach beyond the lit area. Renamed from the old
+        /// SensorRadius on purpose: that field meant a plain sphere around the
+        /// fixture, which this version no longer uses. The rename means an existing
+        /// config.json written against the old meaning is ignored rather than
+        /// silently reinstating the old broken behaviour -- Newtonsoft drops unknown
+        /// fields, so those files fall back to the new defaults.
+        /// </summary>
+        public float? ExtraSensorRadius;
 
         public float? LingerSeconds;
     }
@@ -117,10 +125,10 @@ namespace Lumen
             return settings?.Watts ?? light.Watts;
         }
 
-        public float SensorRadiusFor(LumenLight light)
+        public float ExtraSensorRadiusFor(LumenLight light)
         {
             LightSettings settings = For(light);
-            return settings?.SensorRadius ?? light.SensorRadius;
+            return settings?.ExtraSensorRadius ?? light.ExtraSensorRadius;
         }
 
         public float LingerSecondsFor(LumenLight light)

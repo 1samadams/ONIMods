@@ -177,11 +177,47 @@ every **non-abstract** `IBuildingConfig` and calls `Activator.CreateInstance`, s
 the base is skipped and only the five concrete subclasses register. Adding a
 sixth light means one entry in `LumenLights.All` plus a four-line subclass.
 
+### Detection = the lit-cell set, NOT a radius (regression guard)
+The sensor asks `DiscreteShadowCaster.GetVisibleCells` which cells the fixture
+would light, caches them, and triggers when a duplicant's cell is in that set.
+Do not "simplify" this back to a distance check.
+
+v1 did use a distance check, with `SensorRadius` defaulted to the light's
+`Range`. That is wrong in **both** directions, because the sensor described a
+sphere while the light describes a downward cone. Play-testing showed exactly the
+predicted split:
+
+| Fixture | v1 radius | v1 behaviour |
+|---|---|---|
+| Spotlight | 4 | never triggered — sphere never reached the floor below a ceiling mount |
+| Panel | 8 | triggered constantly — caught duplicants sideways and through walls that it never lit |
+| Floodlight | 12 | correct by luck |
+| Sentry | 16 | correct by luck |
+
+Using the shadow caster makes the trigger condition exactly "this duplicant would
+be lit", which needs no per-building tuning and, usefully, is the *same* test the
+work speed bonus uses: `Workable` reads `Grid.LightIntensity` at
+`Grid.PosToCell(worker.gameObject)`, the duplicant's feet cell — the cell this
+checks. So a lit worker was necessarily already switched on.
+
+There is no chicken-and-egg: `GetVisibleCells` is a pure query and works fine
+while the light is off, which is the state the sensor has to decide out of.
+
+The cache refreshes every `LitCellRefreshSeconds` (5 s) rather than hooking the
+solid-change partitioner. Only building or digging a wall can invalidate it, so
+the lazy refresh is a deliberate simplicity/latency trade. If a wall change needs
+to register instantly, subscribe to `GameScenePartitioner.Instance.solidChangedLayer`
+the way `Light2D.AddToScenePartitioner` does.
+
+`ExtraSensorRadius` is the *only* remaining distance test, is 0 for everything
+but the Sentry, and is additive on top of the lit-cell set. It was renamed from
+`SensorRadius` on purpose so old config files fall back to defaults instead of
+silently reinstating the broken behaviour — Newtonsoft drops unknown fields.
+
 ## Known limitations / deliberate trade-offs
-1. **No line of sight.** Detection is straight-line distance, so a Duplicant on
-   the far side of a wall trips the sensor. A real visibility test would need the
-   lit-cell set, which does not exist while the light is off — the state we are
-   trying to leave.
+1. **`ExtraSensorRadius` ignores walls.** Only the Sentry uses it, and that is the
+   point: it is an early warning for someone approaching from outside the beam.
+   The baseline lit-cell test *is* wall-aware.
 2. **No status item** explaining *why* an unlit fixture is non-operational. The
    dark animation is the only feedback. A custom `StatusItem` would need its own
    string registration; deferred.
@@ -212,16 +248,31 @@ On this machine the deploy currently **succeeds**, to
 ## Status
 Compiles clean, zero warnings, deployed.
 
-**Play-test 1 (build 744825, no DLC5):** the Panel Light failed to register
-because of the DLC-gated anim described above. Fixed and guarded; the other four
-buildings registered without error, but nothing else has been confirmed working
-in-game yet. Items 2-11 of the checklist below are still unverified.
+**Play-test 1 (build 744825, no DLC5):** Panel Light failed to register — DLC-gated
+anim. Fixed and guarded.
+
+**Play-test 2:** Floodlight and Sentry confirmed working once placed. Floor Lamp
+confirmed working. Spotlight never triggered and Panel Light stayed lit too long
+— both traced to the sphere-vs-cone mismatch, now fixed by the lit-cell rewrite
+above. **That rewrite is not yet play-tested.**
+
+**Resolved, not a bug:** reported inverted light cones. Cone lights always project
+downward — `DiscreteShadowCaster.GetVisibleCells` hardcodes `Octant.S_SE`/`S_SW`
+for `Cone` and never reads a direction. The vanilla Sun Lamp shows the same
+inverted-looking *placement preview* and is correct once placed, so this is stock
+behaviour, not something Lumen introduced. Only `ScanQuad` honours
+`LightDirection`, so an up-shining fixture would need `LightShape.Quad` +
+`Direction.North` + a `Width`, as the Mercury Ceiling Light does.
 
 Open cosmetic issue: with the Panel Light moved off the glass anim, four of the
 five fixtures now share `ceilinglight_kanim` and differ only by tint. The
 remaining base-game option for real silhouette variety is `sun_lamp_kanim`, which
 would mean making one of them a 2x4 floor unit. Not done — it changes that
 building's identity and was not asked for.
+
+**Temporary:** `LumenMotionSensor.LogGeometryOnce` prints one `[Lumen] geometry`
+line per building type at first spawn, including the lit-cell count. It exists to
+verify the rewrite; remove it once play-test 3 passes.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, "Lumen" listed in the Mods menu.
