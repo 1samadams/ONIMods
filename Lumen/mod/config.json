@@ -1,0 +1,9 @@
+{
+  "Lights": {
+    "LumenSpotlight":   { "Enabled": true, "Watts": 1.0, "SensorRadius": 4.0,  "LingerSeconds": 5.0 },
+    "LumenPanelLight":  { "Enabled": true, "Watts": 1.0, "SensorRadius": 8.0,  "LingerSeconds": 5.0 },
+    "LumenFloodlight":  { "Enabled": true, "Watts": 1.0, "SensorRadius": 12.0, "LingerSeconds": 8.0 },
+    "LumenFloorLamp":   { "Enabled": true, "Watts": 1.0, "SensorRadius": 5.0,  "LingerSeconds": 5.0 },
+    "LumenSentryLight": { "Enabled": true, "Watts": 1.0, "SensorRadius": 16.0, "LingerSeconds": 10.0 }
+  }
+}

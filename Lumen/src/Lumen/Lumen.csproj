@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TargetFramework (net48), LangVersion, the game references and the
+    Microsoft.NETFramework.ReferenceAssemblies package all come from
+    Directory.Build.props at the monorepo root. Only what is specific to this
+    mod lives here.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>Lumen</AssemblyName>
+    <RootNamespace>Lumen</RootNamespace>
+    <Version>1.0.0</Version>
+    <EnableDefaultItems>true</EnableDefaultItems>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      Must resolve the REAL Documents folder, not $(USERPROFILE)\Documents.
+      OneDrive Known Folder Move redirects Documents to %USERPROFILE%\OneDrive\
+      Documents; the game follows the redirect but $(USERPROFILE)\Documents does
+      not, so the literal path silently deploys to a folder the game never reads.
+    -->
+    <DocumentsDir>$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))</DocumentsDir>
+    <ModDeployDir>$(DocumentsDir)\Klei\OxygenNotIncluded\mods\Local\Lumen</ModDeployDir>
+    <ModAssetsDir>$(MSBuildProjectDirectory)\..\..\mod</ModAssetsDir>
+    <StageDir>$(MSBuildProjectDirectory)\..\..\dist\Lumen</StageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mod-specific: used to read config.json. -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(GameLibsDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Stage the complete, ready-to-install mod folder inside the repo. This always
+    succeeds, and is what you hand-copy if the deploy step below is blocked.
+  -->
+  <Target Name="StageMod" AfterTargets="Build">
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml;$(ModAssetsDir)\config.json"
+          DestinationFolder="$(StageDir)" />
+    <Message Importance="high" Text="Lumen staged at $(StageDir)" />
+  </Target>
+
+  <!--
+    Deploy into the game's Local mods folder. ContinueOnError is deliberate:
+    Windows Controlled Folder Access (ransomware protection) guards the real
+    Documents folder and blocks MSBuild from writing there, failing with a
+    misleading "Could not find file". A blocked deploy must not fail the build;
+    the staged folder above is still valid, just copy it across manually.
+
+    config.json is copied ONLY if absent so a player's edits survive rebuilds.
+  -->
+  <Target Name="DeployToLocalMods" AfterTargets="StageMod">
+    <MakeDir Directories="$(ModDeployDir)" ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\config.json" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue"
+          Condition="Exists('$(ModDeployDir)') And !Exists('$(ModDeployDir)\config.json')" />
+    <Message Importance="high" Condition="Exists('$(ModDeployDir)\Lumen.dll')"
+             Text="Lumen deployed to $(ModDeployDir)" />
+    <Message Importance="high" Condition="!Exists('$(ModDeployDir)\Lumen.dll')"
+             Text="Lumen could NOT auto-deploy (Controlled Folder Access?). Copy $(StageDir) to $(ModDeployDir) manually." />
+  </Target>
+
+</Project>

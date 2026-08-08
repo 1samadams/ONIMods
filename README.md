@@ -12,9 +12,10 @@ solution, `ONIMods.sln`, builds them all.
 | --- | --- | --- | --- |
 | **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable in `config.json`. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
 | **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
+| **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus. Vanilla lights are left untouched. Every fixture is tunable in `config.json`. | _local only — not published_ |
 
-Both target `supportedContent: ALL` and mod `APIVersion: 2`, minimum game build
-`744825`.
+All three target `supportedContent: ALL` and mod `APIVersion: 2`, minimum game
+build `744825`.
 
 ## Building
 
@@ -61,10 +62,10 @@ Copy that folder into the game's local mods directory:
 
 Then enable the mod from the in-game **Mods** menu and restart.
 
-> On Windows, Auto Machines also tries to copy itself straight into the Local
-> mods folder after each build. If Controlled Folder Access blocks that, the
-> build still succeeds and prints a warning — copy the staged `dist/` folder
-> across by hand.
+> On Windows, Auto Machines and Lumen also try to copy themselves straight into
+> the Local mods folder after each build. If Controlled Folder Access blocks
+> that, the build still succeeds and prints a warning — copy the staged `dist/`
+> folder across by hand.
 
 ## Repository layout
 
@@ -77,16 +78,20 @@ ONIMods/
 ├── AutoMachines/
 │   ├── mod/                         mod.yaml, mod_info.yaml, config.json
 │   └── src/AutoMachines/            sources + mod-specific build settings
-└── UnlockAllBlueprints/
-    ├── mod/                         mod.yaml, mod_info.yaml
-    └── src/UnlockAllBlueprints/     sources + mod-specific build settings
+├── UnlockAllBlueprints/
+│   ├── mod/                         mod.yaml, mod_info.yaml
+│   └── src/UnlockAllBlueprints/     sources + mod-specific build settings
+└── Lumen/
+    ├── mod/                         mod.yaml, mod_info.yaml, config.json
+    └── src/Lumen/                   sources + mod-specific build settings
 ```
 
 `Directory.Build.props` is imported automatically into every project, so the
 target framework, the shared game references and the
 `Microsoft.NETFramework.ReferenceAssemblies` version are declared exactly once.
-A mod needing an extra assembly (Auto Machines uses `Newtonsoft.Json` to read
-its `config.json`) declares that in its own `.csproj`.
+A mod needing an extra assembly (Auto Machines and Lumen both use
+`Newtonsoft.Json` to read their `config.json`) declares that in its own
+`.csproj`.
 
 Mods target **.NET Framework 4.8**, not 4.7.1: the game ships `0Harmony.dll`
 built against 4.8, and targeting lower makes MSBuild refuse to resolve it

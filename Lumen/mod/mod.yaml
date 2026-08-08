@@ -1,0 +1,3 @@
+title: "Lumen"
+description: "Five new motion-activated light fixtures, unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. Vanilla lights are left untouched. Every fixture is tunable in config.json."
+staticID: ONI.Lumen
