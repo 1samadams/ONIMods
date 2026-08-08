@@ -45,6 +45,7 @@ namespace Lumen
             Watts = 1f,
             ExtraSensorRadius = 0f,
             LingerSeconds = 5f,
+            Aimable = true,
         };
 
         public static readonly LumenLight PanelLight = new LumenLight
@@ -76,6 +77,7 @@ namespace Lumen
             Watts = 1f,
             ExtraSensorRadius = 0f,
             LingerSeconds = 5f,
+            Aimable = true,
         };
 
         public static readonly LumenLight Floodlight = new LumenLight
@@ -103,6 +105,7 @@ namespace Lumen
             Watts = 1f,
             ExtraSensorRadius = 0f,
             LingerSeconds = 8f,
+            Aimable = true,
         };
 
         public static readonly LumenLight FloorLamp = new LumenLight
@@ -158,6 +161,7 @@ namespace Lumen
             Watts = 1f,
             ExtraSensorRadius = 12f,
             LingerSeconds = 10f,
+            Aimable = true,
         };
 
         /// <summary>
@@ -166,6 +170,17 @@ namespace Lumen
         /// CeilingLightConfig, which has no GetRequiredDlcIds override.
         /// </summary>
         public const string FallbackAnim = "ceilinglight_kanim";
+
+        /// <summary>
+        /// Whether a prefab name belongs to this mod. Every Lumen ID starts with
+        /// "Lumen", and the game derives the preview and under-construction prefab
+        /// names from the ID ("<c>&lt;ID&gt;Preview</c>"), so a prefix test covers all
+        /// three variants of a building.
+        /// </summary>
+        public static bool IsLumenPrefab(string prefabName)
+        {
+            return prefabName != null && prefabName.StartsWith("Lumen");
+        }
 
         /// <summary>Build-menu order.</summary>
         public static readonly LumenLight[] All =

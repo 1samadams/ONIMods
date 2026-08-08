@@ -64,6 +64,14 @@ namespace Lumen
             def.ViewMode = OverlayModes.Light.ID;
             def.AudioCategory = "Metal";
 
+            // Only offer rotation where it does something. A stock cone light cannot
+            // aim anywhere but down, so without a mod that makes cones directional
+            // this would spin the sprite and leave the beam on the floor.
+            if (light.Aimable && LumenCompat.ConesAreDirectional)
+            {
+                def.PermittedRotations = PermittedRotations.R360;
+            }
+
             if (!Settings.Instance.IsEnabled(light))
             {
                 // The game has its own concept for "registered but not available",
@@ -136,6 +144,14 @@ namespace Lumen
             preview.radius = light.Range;
             preview.shape = light.Shape;
             preview.offset = new CellOffset((int)light.Offset.x, (int)light.Offset.y);
+
+            // The fix for "preview cone points up". LightShapePreview.direction
+            // defaults to Direction.North (enum value 0), and no vanilla config ever
+            // sets it, because stock cones ignore direction entirely. A mod that makes
+            // cones directional turns that unset default into a cone aimed straight
+            // up. Stating South explicitly costs nothing when it is ignored and is
+            // correct when it is not.
+            preview.direction = DiscreteShadowCaster.Direction.South;
         }
 
         public override void DoPostConfigureComplete(GameObject go)
@@ -166,6 +182,13 @@ namespace Lumen
 
             LumenTint tint = go.AddOrGet<LumenTint>();
             tint.colour = light.Tint;
+
+            // Added before the sensor so that, at spawn, the beam is already aimed
+            // when the sensor computes which cells it covers.
+            if (light.Aimable && LumenCompat.ConesAreDirectional)
+            {
+                go.AddOrGet<LumenAimedLight>();
+            }
 
             // Added after Light2D: the sensor requires it, and derives its whole
             // trigger area from the light's own range and shape.

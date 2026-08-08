@@ -260,68 +260,71 @@ triggered and Panel Light stayed lit too long — both the sphere-vs-cone mismat
 **Play-test 3: all five confirmed working**, lighting the correct downward cone.
 The lit-cell rewrite is verified in-game.
 
-### CLOSED as a mod interaction: inverted placement preview
-The cone shown while *placing* a light points the wrong way; the placed light is
-correct. **Prime suspect: the "Rotate Everything" mod** (Jarodamus Prime,
-Workshop 1715709940), whose changelog reads "Ceiling Lights: Added the ability to
-rotate ceiling lights 360 degrees".
+### SOLVED: inverted placement preview, and how aiming works
+Root cause, confirmed by decompiling `rotate_everything.dll` (Rotate Everything,
+Jarodamus Prime, Workshop 1715709940 -- no public source; decompile the installed
+binary under `mods/Steam/1715709940/`). It does two things:
 
-Mechanism, from `BuildingLoader.CreateBuildingPreview`:
+1. Prefixes **`DiscreteShadowCaster.GetVisibleCells`** and, for `LightShape.Cone`,
+   picks the octant pair from the `direction` argument instead of the stock
+   hardcoded `S_SE`/`S_SW`. **This is global** -- it makes cones aimable for every
+   light in the game, Lumen's included.
+2. Only updates `LightShapePreview.direction` for prefabs whose name starts with
+   **`"CeilingLight"`** (a `LightShapePreview.Update` prefix), and likewise only
+   re-aims `Light2D` for those, via `Light2D.OnSpawn` and
+   `Rotatable.SetOrientation` postfixes.
 
-```csharp
-Rotatable rotatable = UpdateComponentRequirement<Rotatable>(
-    gameObject, def.PermittedRotations != PermittedRotations.Unrotatable);
-```
+`LightShapePreview.direction` defaults to `Direction.North` -- enum value 0 -- and
+**no vanilla config ever sets it**, because stock cones ignore direction. So once
+(1) makes direction meaningful, every cone light that (2) does not whitelist
+previews as a cone aimed straight up.
 
-Making a light rotatable puts a `Rotatable` on the **preview object**, which is
-the same object that carries `LightShapePreview`. Vanilla `LightShapePreview.Update`
-never applies rotation to the cone — it passes the raw `offset` and `direction`
-through, and `GetVisibleCells` hardcodes `Cone` downward regardless. So the
-blueprint's visual frame rotates while the cone cells do not.
+That explains the whole observed pattern: vanilla Ceiling Light fine
+(whitelisted), vanilla Sun Lamp broken, Lumen cones broken, Lumen **Floor Lamp
+fine because it is a `Circle`** -- the patch returns early for non-cone shapes.
 
-Corroboration: **PLib patches `Rotatable.OrientVisualizer`** purely to reset
-`LightShapePreview.previousCell` to `-1` and force regeneration. Another modder
-hit rotation-vs-light-preview and had to work around it.
+**Fix:** `DoPostConfigurePreview` sets `preview.direction = South` explicitly.
+One line, no vanilla patching. Harmless when direction is ignored, correct when
+it is not. Do not delete it as redundant -- it is only redundant in stock ONI.
 
-Fits every observation, including the one that defeated earlier theories: the
-Lumen **Floor Lamp is unaffected because it is `LightShape.Circle`** — circles are
-rotation-invariant, so the mismatch is invisible on them. And "sized correctly
-but pointing wrong" is the signature of correct cells inside a rotated frame.
+### Aiming a light needs THREE fields to agree
+`LumenOrientation` maps `Orientation` onto all three. Setting one alone gives a
+light that looks right and lights the wrong tiles, or the reverse:
 
-**Earlier conclusion in this file was wrong** and is corrected here: the Sun Lamp
-reproducing it proved only that the flip is not Lumen-specific, NOT that it is
-stock behaviour. With a mod installed that patches lighting or rotation globally,
-"test it on a vanilla building" does not establish vanilla behaviour. Rule out
-third-party patches before blaming Klei.
+| Field | Type | Controls |
+|---|---|---|
+| `Light2D.LightDirection` | `DiscreteShadowCaster.Direction` | which **cells** are lit |
+| `Light2D.Direction` | `Vector2` | which way the **glow** is drawn (`LightBuffer`) |
+| `Light2D.Offset` | `Vector2` | where the emitter sits (cosmetic at our magnitudes) |
 
-Do not go looking for this in the Lumen code. The chain is provably correct:
-`LightShapePreview.Update` -> `LightGridManager.CreatePreview` ->
-`DiscreteShadowCaster.GetVisibleCells`, which for `LightShape.Cone` scans
-`Octant.S_SE`/`S_SW` — hardcoded downward, never reading a direction — and
-`ComputeFalloff` is symmetric for non-`Quad` shapes. So `previewLux` holds a
-correct downward cone and the flip is in Klei's preview *rendering*.
+`Light2D.FullRefresh()` must follow, or the change sits unapplied in
+`pending_emitter_state`.
 
-The preview object carries no `Light2D` at all, so the `LightBuffer` shader path
-that does read `Direction`/`Angle` is not involved in a preview.
+### Rotation is gated on a third-party mod, deliberately
+`LumenCompat.ConesAreDirectional` checks whether the `rotate_everything` assembly
+is loaded. Only then do aimable fixtures get `PermittedRotations.R360` and a
+`LumenAimedLight`. Without it a rotatable cone would spin its sprite while the
+beam stayed on the floor -- worse than not offering rotation at all. Detection is
+lazy and cached: mod load order is not guaranteed, and this is first read during
+building registration, long after every mod assembly has loaded.
 
-Nothing to fix in Lumen. If the rotation mod is the cause, the fix belongs there
-or in a compatibility shim, not here.
+If that mod is ever abandoned, the self-contained alternative is
+`LightShape.Quad`, which honours `LightDirection` in **stock** ONI via `ScanQuad`
+(the Mercury Ceiling Light is the vanilla reference). Quad throws a rectangle
+rather than a cone.
 
-### Rotation and cone lights are fundamentally incompatible
-Worth knowing before anyone tries to make a Lumen light rotatable:
-`LightShape.Cone` **cannot point anywhere but down** — `GetVisibleCells` scans
-`Octant.S_SE`/`S_SW` for it unconditionally. Only `ScanQuad` honours
-`LightDirection`. A genuinely rotatable Lumen fixture would therefore have to be
-`LightShape.Quad` with a `Width` and a `LightDirection`, as the Mercury Ceiling
-Light is. Rotating a `Cone` light can only ever rotate its sprite. Note the diagnosis went down a blind alley first by
-comparing against the Ceiling Light — ceiling-mounted, so a downward cone looks
-natural there and hides the artifact. The Sun Lamp is the right comparison
-because it is floor-mounted with its head 3.5 tiles up.
+Both rotation patches are scoped so they cannot affect other mods' lights:
+`Rotatable.SetOrientation` by **component presence** (`LumenAimedLight`), and
+`LightShapePreview.Update` by prefab-name prefix, since the preview prefab is
+named `<ID>Preview` and carries none of our components.
 
-Related: only `ScanQuad` honours `LightDirection`, so an up-shining fixture would
-need `LightShape.Quad` + `Direction.North` + a `Width`, as the Mercury Ceiling
-Light does. `Cone` cannot point up at any setting.
-
+### Lesson: a vanilla building is not a control when mods patch globally
+An earlier conclusion in this file -- that the flipped preview was stock Klei
+behaviour -- was wrong, and cost several rounds of hunting through Klei's
+renderer for a bug that was never there. The Sun Lamp reproducing it proved only
+that the flip was not *Lumen-specific*. Rule out third-party patches, by
+decompiling them, before concluding anything is stock. The installed DLLs are
+right there under `mods/Steam/`.
 ### Open: four fixtures share one silhouette
 With the Panel Light moved off the glass anim, four of five share
 `ceilinglight_kanim` and differ only by a whole-object `LumenTint`. Options, in

@@ -35,6 +35,19 @@ lights a Duplicant, it was already on.
 The Sentry is the one exception: it additionally senses in a plain 12-tile radius
 beyond its beam, ignoring walls, so a corridor is bright before anyone arrives.
 
+## Rotation
+
+With the [Rotate Everything](https://steamcommunity.com/sharedfiles/filedetails/?id=1715709940)
+mod installed, the four cone fixtures can be **rotated in all four directions** —
+mount them to throw light sideways or upward. The beam, the glow and the motion
+sensor's trigger area all follow wherever you aim it.
+
+Without that mod they stay fixed, on purpose. Stock *Oxygen Not Included* cannot
+aim a cone at all: `DiscreteShadowCaster` scans a hardcoded downward octant pair
+and never reads the direction it was given. Offering rotation anyway would spin
+the fixture's sprite while the light kept pointing at the floor. The Floor Lamp
+is never rotatable — it casts a circle, which looks identical from every angle.
+
 All five appear under **Furniture → Lights** and are unlocked by the
 **Logic Control** research node — the same one that gives you the Duplicant
 Motion Sensor.
@@ -94,6 +107,13 @@ Only **base-game** anims are used. DLC-only anims are absent on installs without
 that DLC, and the game does not degrade gracefully — it throws while registering
 the building, and you lose the building entirely. The four ceiling fixtures
 therefore share one silhouette and are told apart by colour.
+
+## Compatibility
+
+Vanilla lights are never patched. The two Harmony patches this mod does apply are
+scoped so they cannot touch anything else: one matches on a Lumen-only component,
+the other on the `Lumen` prefab-name prefix. Both exist solely to keep a rotated
+Lumen fixture's beam and placement preview pointing the same way as its sprite.
 
 ## Building
 

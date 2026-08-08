@@ -133,6 +133,19 @@ namespace Lumen
         }
 
         /// <summary>
+        /// Forces the lit-cell set to be recomputed on the next tick. Called when the
+        /// fixture is re-aimed, so the trigger area follows the beam immediately
+        /// rather than after the next lazy refresh.
+        /// </summary>
+        public void InvalidateLitCells()
+        {
+            if (isSpawned)
+            {
+                RebuildLitCells();
+            }
+        }
+
+        /// <summary>
         /// Asks the game which cells this fixture would light.
         ///
         /// This replaced a plain distance check, which was wrong in both directions:

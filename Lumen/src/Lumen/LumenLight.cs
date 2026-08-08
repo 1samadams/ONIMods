@@ -66,5 +66,15 @@ namespace Lumen
 
         /// <summary>Default seconds the light stays on after the last duplicant leaves.</summary>
         public float LingerSeconds;
+
+        /// <summary>
+        /// Whether this fixture can be rotated to aim its beam.
+        ///
+        /// Only meaningful for <see cref="LightShape.Cone"/>: a Circle is
+        /// rotation-invariant, so offering rotation on one would be a control that
+        /// visibly does nothing. Also requires cone lights to honour their direction
+        /// at all -- see <see cref="LumenCompat.ConesAreDirectional"/>.
+        /// </summary>
+        public bool Aimable;
     }
 }
