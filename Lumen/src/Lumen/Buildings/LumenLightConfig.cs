@@ -36,7 +36,7 @@ namespace Lumen
                 light.Id,
                 light.Width,
                 light.Height,
-                light.Anim,
+                ResolveAnim(light),
                 hitpoints: 10,
                 construction_time: 10f,
                 construction_mass: light.Mass,
@@ -65,6 +65,45 @@ namespace Lumen
             def.AudioCategory = "Metal";
 
             return def;
+        }
+
+        /// <summary>
+        /// Returns the light's anim if this install actually has it, otherwise a
+        /// base-game one.
+        ///
+        /// BuildingTemplates.CreateBuildingDef does an unchecked
+        /// `AnimFiles = new KAnimFile[1] { Assets.GetAnim(anim) }`, and GetAnim
+        /// returns null for an anim this install never loaded. The resulting
+        /// [null] array does not read as empty, so BuildingLoader.Add2DComponents
+        /// sails past its length check and throws inside
+        /// KAnimControllerBase.set_AnimFiles -- which aborts RegisterBuilding for
+        /// that whole building.
+        ///
+        /// This bit once: the Panel Light originally reused
+        /// glassceilinglight_jelly_green_kanim, which belongs to a building gated
+        /// behind DlcManager.DLC5 and is simply not present without that DLC. Every
+        /// anim named in LumenLights should be base-game, but this makes a mistake
+        /// there cost one wrong-looking fixture instead of a missing building.
+        /// </summary>
+        private static string ResolveAnim(LumenLight light)
+        {
+            if (Assets.GetAnim(light.Anim) != null)
+            {
+                return light.Anim;
+            }
+
+            UnityEngine.Debug.LogWarning(
+                "[Lumen] " + light.Id + " wants anim '" + light.Anim + "', which this install does not have " +
+                "(a DLC-only anim?). Falling back to '" + LumenLights.FallbackAnim + "'.");
+
+            if (Assets.GetAnim(LumenLights.FallbackAnim) == null)
+            {
+                UnityEngine.Debug.LogError(
+                    "[Lumen] Fallback anim '" + LumenLights.FallbackAnim + "' is missing too. " +
+                    light.Id + " will fail to register.");
+            }
+
+            return LumenLights.FallbackAnim;
         }
 
         public override void ConfigureBuildingTemplate(GameObject go, Tag prefab_tag)

@@ -120,10 +120,33 @@ read as five fixtures.
   the controller is batched, so setting it on the inactive prefab template is
   silently dropped.
 - Only kanims driven by `LightController` are usable, because `LightController`
-  plays the literal anim names `"on"` and `"off"`. Safe: `ceilinglight_kanim`,
-  `glassceilinglight_jelly_green_kanim`, `floorlamp_kanim`, `sun_lamp_kanim`.
-  **Not** `mercurylight_kanim` — the Mercury Ceiling Light has its own
-  `MercuryLight` state machine with different anim names.
+  plays the literal anim names `"on"` and `"off"`. **Not** `mercurylight_kanim` —
+  the Mercury Ceiling Light has its own `MercuryLight` state machine with
+  different anim names.
+- **Only base-game anims.** Verified safe: `ceilinglight_kanim`,
+  `floorlamp_kanim`, `sun_lamp_kanim` — their configs have no
+  `GetRequiredDlcIds` override. **Never** `glassceilinglight_jelly_green_kanim`:
+  `GlassCeilingLightConfig.GetRequiredDlcIds()` returns `DlcManager.DLC5`, so on
+  an install without DLC5 the anim is simply not loaded. This shipped as a bug
+  and killed the Panel Light outright — see below.
+
+### The missing-anim failure mode (hit in play-testing, now guarded)
+`BuildingTemplates.CreateBuildingDef` does an unchecked
+`AnimFiles = new KAnimFile[1] { Assets.GetAnim(anim) }`. When the anim is absent
+`GetAnim` returns null, so `AnimFiles` is `[null]` — which is **not** empty, so
+`BuildingLoader.Add2DComponents` passes its `Length != 0` check and then throws
+inside `KAnimControllerBase.set_AnimFiles`. That aborts `RegisterBuilding` for
+the whole building, and the log reads:
+
+```
+First anim file needs to be non-null. LumenPanelLightComplete
+Exception in RegisterBuilding for type Lumen.LumenPanelLightConfig from Lumen
+  System.NullReferenceException at KAnimControllerBase.set_AnimFiles
+```
+
+`LumenLightConfig.ResolveAnim` now checks `Assets.GetAnim` first and falls back
+to `LumenLights.FallbackAnim`, so a bad anim name costs one wrong-looking fixture
+instead of a missing building. Keep that guard.
 
 ## No save-persisted state
 Same constraint as AutoMachines. `LumenMotionSensor` and `LumenTint` have no
@@ -187,8 +210,18 @@ On this machine the deploy currently **succeeds**, to
 `C:\Users\1sama\OneDrive\Documents\Klei\OxygenNotIncluded\mods\Local\Lumen`.
 
 ## Status
-**Compiles clean, zero warnings, deployed. Nothing verified in-game yet.**
-Everything above is verified against decompiled source and a clean build only.
+Compiles clean, zero warnings, deployed.
+
+**Play-test 1 (build 744825, no DLC5):** the Panel Light failed to register
+because of the DLC-gated anim described above. Fixed and guarded; the other four
+buildings registered without error, but nothing else has been confirmed working
+in-game yet. Items 2-11 of the checklist below are still unverified.
+
+Open cosmetic issue: with the Panel Light moved off the glass anim, four of the
+five fixtures now share `ceilinglight_kanim` and differ only by tint. The
+remaining base-game option for real silhouette variety is `sun_lamp_kanim`, which
+would mean making one of them a 2x4 floor unit. Not done — it changes that
+building's identity and was not asked for.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, "Lumen" listed in the Mods menu.

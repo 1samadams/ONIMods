@@ -57,7 +57,11 @@ namespace Lumen
                 "Lights a wide area <b>only while a Duplicant is nearby</b>, then switches itself off.",
             Width = 1,
             Height = 1,
-            Anim = "glassceilinglight_jelly_green_kanim",
+            // NOT glassceilinglight_jelly_green_kanim. That anim belongs to the Glass
+            // Ceiling Light, whose config declares GetRequiredDlcIds() = DlcManager.DLC5,
+            // so it is absent on installs without DLC5 -- Assets.GetAnim returns null
+            // and BuildingLoader NREs. Only base-game anims are safe here.
+            Anim = "ceilinglight_kanim",
             BuildLocation = BuildLocationRule.OnCeiling,
             Materials = MATERIALS.GLASSES,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER1,
@@ -155,6 +159,13 @@ namespace Lumen
             SensorRadius = 16f,
             LingerSeconds = 10f,
         };
+
+        /// <summary>
+        /// Used when a light's own anim is missing from this install. Must be a
+        /// base-game anim with no DLC gating -- ceilinglight_kanim is loaded by
+        /// CeilingLightConfig, which has no GetRequiredDlcIds override.
+        /// </summary>
+        public const string FallbackAnim = "ceilinglight_kanim";
 
         /// <summary>Build-menu order.</summary>
         public static readonly LumenLight[] All =

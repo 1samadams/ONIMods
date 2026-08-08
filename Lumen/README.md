@@ -71,10 +71,14 @@ mod folder if it is not already there. Delete it to regenerate the defaults.
 
 ## Art
 
-These reuse Klei's `ceilinglight`, `glassceilinglight_jelly_green` and
-`floorlamp` animations with a per-building colour tint, rather than shipping
-custom `.kanim` files. Swapping in real custom art later is a one-line change per
-entry in `LumenLights.cs`.
+These reuse Klei's `ceilinglight` and `floorlamp` animations with a per-building
+colour tint, rather than shipping custom `.kanim` files. Swapping in real custom
+art later is a one-line change per entry in `LumenLights.cs`.
+
+Only **base-game** anims are used. DLC-only anims are absent on installs without
+that DLC, and the game does not degrade gracefully — it throws while registering
+the building, and you lose the building entirely. The four ceiling fixtures
+therefore share one silhouette and are told apart by colour.
 
 ## Building
 
