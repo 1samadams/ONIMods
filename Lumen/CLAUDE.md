@@ -111,9 +111,9 @@ Facts behind the constants in `LumenLights.cs`:
 - `UI.FormatAsLink` does **not** resolve from a mod assembly here. Plain names.
 
 ## Art — reused kanims, tinted
-No custom `.kanim` pipeline. `LumenTint` applies
-`KBatchedAnimController.TintColour` so five buildings sharing three Klei anims
-read as five fixtures.
+No custom `.kanim` pipeline. `LumenAppearance` applies
+`KBatchedAnimController.TintColour`, a per-symbol lens tint and an `animScale`
+multiplier, so five buildings sharing two Klei anims read as five fixtures.
 
 - The tint must be applied **at spawn, not at prefab-configure time**.
   `TintColour` writes through to `batchInstanceData`, which does not exist until
@@ -340,18 +340,33 @@ Still colour-only between **Panel and Sentry** — same kanim, same range, so sa
 size. That is honest rather than fixed with an invented size difference; they
 differ by tint, sensor reach and linger.
 
-**The blocker for anything finer.** `SetSymbolTint`, `SetSymbolVisiblity`,
-`SetSymbolScale` and `SetSymbolOverride` address parts of a sprite by symbol
-name, and those names live in the binary build file — `KAnim.Build.symbols`,
-each a `Symbol` with a `KAnimHashedString hash`. They are **not** readable by
-decompiling Assembly-CSharp. `LumenSymbolDump` (temporary, in
-`LumenAppearance.cs`) logs them once per kanim at first spawn.
+**Symbol names (dumped at runtime; NOT readable by decompiling).** These are the
+only two kanims the mod uses:
 
-If the dump prints readable names, record them here and per-symbol tinting
-becomes straightforward. If it prints numbers, HashCache does not know the
-strings and symbols must be identified by tinting them one at a time and looking.
-Either way the hash is what the setters take, so the dump is usable regardless.
-**Delete `LumenSymbolDump` once the names are recorded here.**
+| kanim | symbols |
+|---|---|
+| `ceilinglight_kanim` (5) | `generator_light_bloom`, `light_off`, `place`, `temp_base`, `ui` |
+| `floorlamp_kanim` (9) | `ui`, `beam`, `cord`, `place`, `pole`, `shade`, `feet`, `handle`, `light` |
+
+Read those carefully before planning art work, because they set hard limits:
+
+- **`ceilinglight_kanim` has exactly ONE body part**, `temp_base` — and the name
+  says what it is, placeholder art Klei never replaced. The rest is a bloom, an
+  off-state sprite, the placement ghost and the build-menu icon. So
+  `SetSymbolVisiblity` cannot produce silhouette variety on the ceiling
+  fixtures: hiding `temp_base` leaves a floating glow, hiding the bloom kills the
+  light. **Do not plan a "hide parts" scheme for the ceiling lights.**
+- **`floorlamp_kanim` is genuinely composable** — `pole`, `shade`, `feet`,
+  `cord`, `handle`, `beam`, `light` are seven separable parts. Any future
+  part-hiding or part-swapping work should be built on this kanim, not the
+  ceiling one.
+
+What was done with them: `LumenAppearance` tints the housing via `TintColour` and
+the lens via `SetSymbolTint` on `LensSymbols`. All four ceiling fixtures now share
+one neutral steel housing and differ by lens colour, so they read as one product
+line rather than as the same lamp dyed four ways. Symbol tints live on the
+controller instance, not on an animation, so they survive the on/off anim switch
+and only need applying once. Naming a symbol a build lacks is a silent no-op.
 
 ### Open: four fixtures share one silhouette
 With the Panel Light moved off the glass anim, four of five share

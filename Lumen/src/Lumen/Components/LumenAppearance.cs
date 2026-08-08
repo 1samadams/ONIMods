@@ -32,6 +32,15 @@ namespace Lumen
         /// </summary>
         public float animScaleMultiplier = 1f;
 
+        /// <summary>
+        /// Colour for <see cref="lensSymbols"/> only, layered over
+        /// <see cref="colour"/>. Alpha 0 means unset.
+        /// </summary>
+        public Color32 lensColour;
+
+        /// <summary>kanim symbols treated as the lens. May be null.</summary>
+        public string[] lensSymbols;
+
         protected override void OnSpawn()
         {
             base.OnSpawn();
@@ -43,6 +52,7 @@ namespace Lumen
             }
 
             controller.TintColour = colour;
+            ApplyLensTint(controller);
 
             if (!Mathf.Approximately(animScaleMultiplier, 1f))
             {
@@ -51,118 +61,28 @@ namespace Lumen
                 // cannot compound.
                 controller.animScale *= animScaleMultiplier;
             }
-
-            LumenSymbolDump.DumpOnce(controller);
         }
-    }
-
-    /// <summary>
-    /// TEMPORARY DIAGNOSTIC. Logs the symbol names inside each kanim a Lumen fixture
-    /// uses, once per build, the first time such a building spawns.
-    ///
-    /// Reason it exists: SetSymbolTint, SetSymbolVisiblity, SetSymbolScale and
-    /// SetSymbolOverride all address parts of a sprite by symbol name, and those names
-    /// live in the binary build file rather than in Assembly-CSharp -- they cannot be
-    /// read by decompiling. Knowing them is the difference between tinting a whole
-    /// fixture and tinting just its lens.
-    ///
-    /// Caveat: ONI stores symbols hashed. If HashCache happens to know the original
-    /// strings these come out readable; if not, they come out as numbers and symbols
-    /// have to be identified by tinting them one at a time and looking. The hash is
-    /// logged alongside the name either way, because the hash is what the setters
-    /// actually take.
-    ///
-    /// DELETE THIS once the symbol names are recorded in CLAUDE.md.
-    /// </summary>
-    internal static class LumenSymbolDump
-    {
-        private static readonly HashSet<string> dumped = new HashSet<string>();
 
         /// <summary>
-        /// Dumps every kanim any Lumen fixture uses, without needing one to be built.
-        /// Called once the world is loaded, by which point the builds are parsed.
+        /// Tints just the lens, leaving the housing on <see cref="colour"/>.
         ///
-        /// There are only ever two distinct kanims across the five fixtures, and they
-        /// are known from the light table, so nothing has to be placed to see them.
+        /// Symbol tints live on the controller instance rather than on an animation,
+        /// so they survive the fixture switching between its "on" and "off" anims and
+        /// only need applying once.
         /// </summary>
-        public static void DumpAllLumenAnims()
+        private void ApplyLensTint(KBatchedAnimController controller)
         {
-            foreach (LumenLight light in LumenLights.All)
-            {
-                Dump(Assets.GetAnim(light.Anim));
-            }
-        }
-
-        public static void DumpOnce(KBatchedAnimController controller)
-        {
-            KAnimFile[] files = controller.AnimFiles;
-            if (files == null)
+            if (lensSymbols == null || lensColour.a == 0)
             {
                 return;
             }
 
-            foreach (KAnimFile file in files)
+            foreach (string symbol in lensSymbols)
             {
-                Dump(file);
+                // Naming a symbol the build does not have is a no-op, not an error,
+                // so a kanim swap cannot break this.
+                controller.SetSymbolTint(new KAnimHashedString(symbol), lensColour);
             }
-        }
-
-        private static void Dump(KAnimFile file)
-        {
-            {
-                if (file == null || !dumped.Add(file.name))
-                {
-                    return;
-                }
-
-                try
-                {
-                    KAnim.Build build = file.GetData()?.build;
-                    if (build?.symbols == null)
-                    {
-                        // Not fatal: the build may simply not be parsed yet. The
-                        // spawn-time path retries, and dumped only records names we
-                        // actually printed.
-                        UnityEngine.Debug.Log("[Lumen] symbols " + file.name + ": build not loaded yet.");
-                        dumped.Remove(file.name);
-                        return;
-                    }
-
-                    StringBuilder line = new StringBuilder();
-                    line.Append("[Lumen] symbols ").Append(file.name)
-                        .Append(" (").Append(build.symbols.Length).Append("): ");
-
-                    for (int i = 0; i < build.symbols.Length; i++)
-                    {
-                        if (i > 0)
-                        {
-                            line.Append(", ");
-                        }
-
-                        line.Append(build.symbols[i].hash.ToString());
-                    }
-
-                    UnityEngine.Debug.Log(line.ToString());
-                }
-                catch (System.Exception e)
-                {
-                    UnityEngine.Debug.LogWarning(
-                        "[Lumen] could not read symbols for " + file.name + ": " + e.Message);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Fires the temporary symbol dump once the world exists, so nothing has to be
-    /// built to see the symbol names. Delete alongside <see cref="LumenSymbolDump"/>.
-    /// </summary>
-    [HarmonyLib.HarmonyPatch(typeof(Game), "OnSpawn")]
-    public static class GameOnSpawnSymbolDumpPatch
-    {
-        public static void Postfix()
-        {
-            LumenSymbolDump.DumpAllLumenAnims();
         }
     }
 }

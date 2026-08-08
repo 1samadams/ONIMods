@@ -19,6 +19,12 @@ namespace Lumen
         private static readonly Vector2 CeilingOffset = LIGHT2D.CEILINGLIGHT_OFFSET;
         private static readonly Vector2 FloorOffset = LIGHT2D.FLOORLAMP_OFFSET;
 
+        // Symbol names dumped from the builds at runtime; they are not readable by
+        // decompiling Assembly-CSharp. ceilinglight_kanim has exactly one body part
+        // (temp_base), so the lens is its bloom plus its off-state sprite.
+        private static readonly string[] CeilingLensSymbols = { "generator_light_bloom", "light_off" };
+        private static readonly string[] FloorLampLensSymbols = { "light", "beam", "shade" };
+
         public static readonly LumenLight Spotlight = new LumenLight
         {
             Id = "LumenSpotlight",
@@ -34,7 +40,9 @@ namespace Lumen
             BuildLocation = BuildLocationRule.OnCeiling,
             Materials = MATERIALS.ALL_METALS,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER0,
-            Tint = new Color32(255, 217, 160, 255),
+            Tint = new Color32(214, 220, 228, 255),
+            LensTint = new Color32(255, 196, 120, 255),
+            LensSymbols = CeilingLensSymbols,
             AnimScale = 0.85f,
             Shape = LightShape.Cone,
             Range = 4f,
@@ -67,7 +75,9 @@ namespace Lumen
             BuildLocation = BuildLocationRule.OnCeiling,
             Materials = MATERIALS.GLASSES,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER1,
-            Tint = new Color32(232, 244, 255, 255),
+            Tint = new Color32(214, 220, 228, 255),
+            LensTint = new Color32(198, 230, 255, 255),
+            LensSymbols = CeilingLensSymbols,
             AnimScale = 1f,
             Shape = LightShape.Cone,
             Range = 8f,
@@ -96,7 +106,9 @@ namespace Lumen
             BuildLocation = BuildLocationRule.OnCeiling,
             Materials = MATERIALS.REFINED_METALS,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER2,
-            Tint = new Color32(159, 232, 255, 255),
+            Tint = new Color32(214, 220, 228, 255),
+            LensTint = new Color32(120, 220, 255, 255),
+            LensSymbols = CeilingLensSymbols,
             AnimScale = 1.2f,
             Shape = LightShape.Cone,
             Range = 12f,
@@ -125,7 +137,9 @@ namespace Lumen
             BuildLocation = BuildLocationRule.OnFloor,
             Materials = MATERIALS.ALL_METALS,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER1,
-            Tint = new Color32(255, 230, 191, 255),
+            Tint = new Color32(236, 232, 224, 255),
+            LensTint = new Color32(255, 214, 150, 255),
+            LensSymbols = FloorLampLensSymbols,
             AnimScale = 1f,
             Shape = LightShape.Circle,
             Range = 5f,
@@ -154,7 +168,9 @@ namespace Lumen
             BuildLocation = BuildLocationRule.OnCeiling,
             Materials = MATERIALS.REFINED_METALS,
             Mass = BUILDINGS.CONSTRUCTION_MASS_KG.TIER2,
-            Tint = new Color32(178, 255, 196, 255),
+            Tint = new Color32(214, 220, 228, 255),
+            LensTint = new Color32(140, 255, 170, 255),
+            LensSymbols = CeilingLensSymbols,
             AnimScale = 1f,
             Shape = LightShape.Cone,
             Range = 8f,

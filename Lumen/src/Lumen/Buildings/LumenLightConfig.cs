@@ -183,6 +183,8 @@ namespace Lumen
             LumenAppearance appearance = go.AddOrGet<LumenAppearance>();
             appearance.colour = light.Tint;
             appearance.animScaleMultiplier = (light.AnimScale > 0f) ? light.AnimScale : 1f;
+            appearance.lensColour = light.LensTint;
+            appearance.lensSymbols = light.LensSymbols;
 
             // Added before the sensor so that, at spawn, the beam is already aimed
             // when the sensor computes which cells it covers.

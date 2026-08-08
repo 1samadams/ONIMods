@@ -49,6 +49,23 @@ namespace Lumen
         /// </summary>
         public float AnimScale;
 
+        /// <summary>
+        /// Colour applied to <see cref="LensSymbols"/> only, on top of
+        /// <see cref="Tint"/>. Alpha 0 means "not set".
+        ///
+        /// The point is to keep the housing a common colour across the range while
+        /// each fixture's lens carries its identity, so they read as one product line
+        /// rather than as the same lamp dyed four ways.
+        /// </summary>
+        public Color32 LensTint;
+
+        /// <summary>
+        /// kanim symbols treated as "the lens". Verified by dumping the builds:
+        ///   ceilinglight_kanim: generator_light_bloom, light_off, place, temp_base, ui
+        ///   floorlamp_kanim:    ui, beam, cord, place, pole, shade, feet, handle, light
+        /// </summary>
+        public string[] LensSymbols;
+
         // --- Light2D emitter settings ---
         public LightShape Shape;
         public float Range;
