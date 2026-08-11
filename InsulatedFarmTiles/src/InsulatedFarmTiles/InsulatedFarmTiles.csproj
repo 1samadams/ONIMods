@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    TargetFramework (net48), LangVersion, the game references and the
+    Microsoft.NETFramework.ReferenceAssemblies package all come from
+    Directory.Build.props at the monorepo root. Only what is specific to this
+    mod lives here.
+  -->
+
+  <PropertyGroup>
+    <AssemblyName>InsulatedFarmTiles</AssemblyName>
+    <RootNamespace>InsulatedFarmTiles</RootNamespace>
+    <Version>3.0.0</Version>
+    <EnableDefaultItems>true</EnableDefaultItems>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      Must resolve the REAL Documents folder, not $(USERPROFILE)\Documents.
+      OneDrive Known Folder Move redirects Documents to %USERPROFILE%\OneDrive\
+      Documents; the game follows the redirect but $(USERPROFILE)\Documents does
+      not, so the literal path silently deploys to a folder the game never reads.
+    -->
+    <DocumentsDir>$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))</DocumentsDir>
+    <ModDeployDir>$(DocumentsDir)\Klei\OxygenNotIncluded\mods\Local\InsulatedFarmTiles</ModDeployDir>
+    <ModAssetsDir>$(MSBuildProjectDirectory)\..\..\mod</ModAssetsDir>
+    <StageDir>$(MSBuildProjectDirectory)\..\..\dist\InsulatedFarmTiles</StageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mod-specific: used to read config.json. -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(GameLibsDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!--
+    Stage the complete, ready-to-install mod folder inside the repo. This always
+    succeeds, and is what you hand-copy if the deploy step below is blocked.
+
+    The anim/ folder is content the loader actually scans for, so it has to be
+    copied recursively rather than named file by file: a package without it
+    registers buildings whose kanim is missing, and BuildingTemplates does an
+    unchecked Assets.GetAnim, so RegisterBuilding throws for both tiles.
+  -->
+  <Target Name="StageMod" AfterTargets="Build">
+    <ItemGroup>
+      <ModAssets Include="$(ModAssetsDir)\**\*" Exclude="$(ModAssetsDir)\**\*.dll" />
+    </ItemGroup>
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
+    <Copy SourceFiles="@(ModAssets)" DestinationFiles="@(ModAssets->'$(StageDir)\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Message Importance="high" Text="InsulatedFarmTiles staged at $(StageDir)" />
+  </Target>
+
+  <!--
+    Deploy into the game's Local mods folder. ContinueOnError is deliberate:
+    Windows Controlled Folder Access (ransomware protection) guards the real
+    Documents folder and blocks MSBuild from writing there, failing with a
+    misleading "Could not find file". A blocked deploy must not fail the build;
+    the staged folder above is still valid, just copy it across manually.
+
+    config.json is copied ONLY if absent so a player's edits survive rebuilds.
+  -->
+  <Target Name="DeployToLocalMods" AfterTargets="StageMod">
+    <ItemGroup>
+      <DeployAssets Include="$(ModAssetsDir)\**\*" Exclude="$(ModAssetsDir)\**\*.dll;$(ModAssetsDir)\config.json" />
+    </ItemGroup>
+    <MakeDir Directories="$(ModDeployDir)" ContinueOnError="WarnAndContinue" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="@(DeployAssets)" DestinationFiles="@(DeployAssets->'$(ModDeployDir)\%(RecursiveDir)%(Filename)%(Extension)')"
+          ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
+    <Copy SourceFiles="$(ModAssetsDir)\config.json" DestinationFolder="$(ModDeployDir)"
+          ContinueOnError="WarnAndContinue"
+          Condition="Exists('$(ModDeployDir)') And !Exists('$(ModDeployDir)\config.json')" />
+    <Message Importance="high" Condition="Exists('$(ModDeployDir)\InsulatedFarmTiles.dll')"
+             Text="InsulatedFarmTiles deployed to $(ModDeployDir)" />
+    <Message Importance="high" Condition="!Exists('$(ModDeployDir)\InsulatedFarmTiles.dll')"
+             Text="InsulatedFarmTiles could NOT auto-deploy (Controlled Folder Access?). Copy $(StageDir) to $(ModDeployDir) manually." />
+  </Target>
+
+</Project>
