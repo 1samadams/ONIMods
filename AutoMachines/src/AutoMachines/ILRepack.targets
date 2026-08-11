@@ -1,0 +1,55 @@
+<Project>
+
+  <!--
+    This file's EXISTENCE is load-bearing, separately from its contents.
+
+    ILRepack.Lib.MSBuild.Task injects a default target of its own:
+
+      <Target Name="ILRepack" AfterTargets="Build"
+              Condition="$(Configuration.Contains('Release')) and !Exists('$(ILRepackTargetsFile)')">
+
+    where $(ILRepackTargetsFile) defaults to $(ProjectDir)ILRepack.targets — this
+    file. That default target merges $(OutputPath)*.dll indiscriminately and
+    passes no LibraryPath, so it cannot resolve the game's Newtonsoft.Json
+    (7.0.0.0, referenced with Private=false and therefore never copied to the
+    output) and the build dies with:
+
+      error : Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0, ...'
+
+    Note the Release-only condition. A Debug build never trips it, which is why
+    this stayed hidden — `dotnet build ONIMods.sln` defaults to Debug.
+
+    Putting the real merge here both disables that default and keeps the merge
+    in the one place a reader would look for it.
+  -->
+
+  <!--
+    Merge PLib into AutoMachines.dll. Without this the mod loads and then throws
+    FileNotFoundException on PLib at first use, because ONI does not probe the
+    mod folder for sibling assemblies.
+
+    Internalize=true keeps PLib's types private to this assembly, which is how
+    PLib is meant to ship: every mod carries its own copy and they arbitrate at
+    runtime through PRegistry.
+
+    LibraryPath points at the game's Managed folder so ILRepack can resolve the
+    references it finds in the inputs (Assembly-CSharp, UnityEngine,
+    Newtonsoft.Json) without merging them in.
+  -->
+  <Target Name="MergePLib" AfterTargets="Build" Condition="Exists('$(TargetDir)PLib.dll')">
+    <ItemGroup>
+      <MergeInputs Include="$(TargetPath)" />
+      <MergeInputs Include="$(TargetDir)PLib.dll" />
+    </ItemGroup>
+    <ILRepack
+      Parallel="true"
+      Internalize="true"
+      InputAssemblies="@(MergeInputs)"
+      TargetKind="Dll"
+      LibraryPath="$(GameLibsDir)"
+      OutputFile="$(TargetPath)" />
+    <Delete Files="$(TargetDir)PLib.dll" />
+    <Message Importance="high" Text="PLib merged into $(TargetPath)" />
+  </Target>
+
+</Project>

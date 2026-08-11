@@ -10,8 +10,14 @@
   <PropertyGroup>
     <AssemblyName>AutoMachines</AssemblyName>
     <RootNamespace>AutoMachines</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <EnableDefaultItems>true</EnableDefaultItems>
+    <!--
+      Directory.Build.props sets this false so Klei's DLLs stay out of the
+      output. This mod is an exception: PLib arrives via NuGet and must land in
+      the output folder for the ILRepack step below to find and merge it.
+    -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -28,21 +34,45 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Mod-specific: used to read config.json. -->
+    <!--
+      Mod-specific: Options.cs serialises the settings file with Newtonsoft
+      attributes, and Settings.cs parses the legacy config.json when migrating.
+    -->
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(GameLibsDir)\Newtonsoft.Json.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      PeterHan's PLib supplies the in-game options screen (POptions /
+      SingletonOptions). It is designed to be merged into the mod assembly
+      rather than shipped alongside it, so that every mod carries its own
+      version and they arbitrate at runtime through PRegistry. The ILRepack
+      target below does that merge. Same versions as
+      FastInsulatedSelfSealingAirLock, which is the proven setup in this repo.
+    -->
+    <PackageReference Include="PLib" Version="4.25.0" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    The MergePLib target lives in ILRepack.targets next to this file, not here.
+    That is not a style choice: ILRepack.Lib.MSBuild.Task injects a default
+    merge target of its own in Release builds unless $(ProjectDir)ILRepack.targets
+    exists, and that default one cannot resolve the game's Newtonsoft.Json.
+    See the comment at the top of ILRepack.targets.
+  -->
+
   <!--
     Stage the complete, ready-to-install mod folder inside the repo. This always
     succeeds, and is what you hand-copy if the deploy step below is blocked.
   -->
-  <Target Name="StageMod" AfterTargets="Build">
+  <Target Name="StageMod" AfterTargets="MergePLib">
     <MakeDir Directories="$(StageDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(StageDir)" />
-    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml;$(ModAssetsDir)\config.json"
+    <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml"
           DestinationFolder="$(StageDir)" />
     <Message Importance="high" Text="AutoMachines staged at $(StageDir)" />
   </Target>
@@ -54,7 +84,10 @@
     misleading "Could not find file". A blocked deploy must not fail the build;
     the staged folder above is still valid, just copy it across manually.
 
-    config.json is copied ONLY if absent so a player's edits survive rebuilds.
+    No config.json is shipped any more. PLib owns the settings file and keeps it
+    in the shared mods\config\ directory, outside the mod folder, so it survives
+    Workshop updates. Settings.MigrateLegacyConfig picks up an old mod-folder
+    config.json once, if one is there.
   -->
   <Target Name="DeployToLocalMods" AfterTargets="StageMod">
     <MakeDir Directories="$(ModDeployDir)" ContinueOnError="WarnAndContinue" />
@@ -62,9 +95,6 @@
           ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
     <Copy SourceFiles="$(ModAssetsDir)\mod.yaml;$(ModAssetsDir)\mod_info.yaml" DestinationFolder="$(ModDeployDir)"
           ContinueOnError="WarnAndContinue" Condition="Exists('$(ModDeployDir)')" />
-    <Copy SourceFiles="$(ModAssetsDir)\config.json" DestinationFolder="$(ModDeployDir)"
-          ContinueOnError="WarnAndContinue"
-          Condition="Exists('$(ModDeployDir)') And !Exists('$(ModDeployDir)\config.json')" />
     <Message Importance="high" Condition="Exists('$(ModDeployDir)\AutoMachines.dll')"
              Text="AutoMachines deployed to $(ModDeployDir)" />
     <Message Importance="high" Condition="!Exists('$(ModDeployDir)\AutoMachines.dll')"

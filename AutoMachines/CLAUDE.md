@@ -4,30 +4,141 @@
 Build a Steam-local mod for Oxygen Not Included (Windows, Steam) that makes duplicant-operated fabricators run automatically once materials are delivered — no dupe standing at the machine cranking it.
 
 ## Target buildings
-Patches target **config classes**, not UI names. All names below were verified present in `Assembly-CSharp.dll`. Each is individually toggleable via `config.json`.
+Patches target **config classes**, not UI names. All names below were verified present in `Assembly-CSharp.dll`. Each is individually toggleable from the in-game options screen.
 
-All eleven `ComplexFabricator` buildings share one patch shape (`Patches/FabricatorPatches.cs`). Oil Refinery does not — see its own section below.
+All twenty-five `ComplexFabricator` buildings share one patch shape (`Patches/FabricatorPatches.cs`). Oil Refinery does not — see its own section below.
 
-| Building (UI name) | Config class | Fabricator component | Status |
-|---|---|---|---|
-| Rock Crusher | `RockCrusherConfig` | `ComplexFabricator` | patched, **untested in-game** |
-| Metal Refinery | `MetalRefineryConfig` | `LiquidCooledRefinery` | patched, untested in-game |
-| Glass Forge | `GlassForgeConfig` | `GlassForge` | patched, untested in-game |
-| Supermaterial Refinery | `SupermaterialRefineryConfig` | `ComplexFabricator` | patched, untested in-game |
-| Microbe Musher | `MicrobeMusherConfig` | `MicrobeMusher` | patched, untested in-game |
-| Cooking Station (Grill) | `CookingStationConfig` | `CookingStation` | patched, untested in-game |
-| Gourmet Cooking Station (Gas Range) | `GourmetCookingStationConfig` | `GourmetCookingStation` | patched, untested in-game |
-| Egg Cracker | `EggCrackerConfig` | `ComplexFabricator` | patched, untested in-game |
-| Clothing Fabricator | `ClothingFabricatorConfig` | `ComplexFabricator` | patched, untested in-game |
-| Suit Fabricator | `SuitFabricatorConfig` | `ComplexFabricator` | patched, untested in-game — one building, not two; Atmo/Lead suits are recipes on it |
-| Apothecary | `ApothecaryConfig` | `Apothecary` | patched, untested in-game |
-| Oil Refinery | `OilRefineryConfig` | `OilRefinery` (**not** a fabricator) | **experimental, disabled by default** |
+The first eleven were the original pass. The fourteen below the rule were found by
+the second sweep — see "How the target list was derived", which is the procedure to
+repeat after any content update.
 
-`LiquidCooledRefinery`, `GlassForge`, `GourmetCookingStation`, `MicrobeMusher`, `CookingStation` and `Apothecary` all derive from `ComplexFabricator`, so `GetComponent<ComplexFabricator>()` finds them. **Use `GetComponent`, never `AddOrGet`** — `AddOrGet` would bolt a second, plain `ComplexFabricator` onto those buildings.
+| Building (UI name) | Config class | Fabricator component | DLC | Status |
+|---|---|---|---|---|
+| Rock Crusher | `RockCrusherConfig` | `ComplexFabricator` | — | patched, **untested in-game** |
+| Metal Refinery | `MetalRefineryConfig` | `LiquidCooledRefinery` | — | patched, untested in-game |
+| Glass Forge | `GlassForgeConfig` | `GlassForge` | — | patched, untested in-game |
+| Supermaterial Refinery | `SupermaterialRefineryConfig` | `ComplexFabricator` | — | patched, untested in-game |
+| Microbe Musher | `MicrobeMusherConfig` | `MicrobeMusher` | — | patched, untested in-game |
+| Cooking Station (Grill) | `CookingStationConfig` | `CookingStation` | — | patched, untested in-game |
+| Gourmet Cooking Station (Gas Range) | `GourmetCookingStationConfig` | `GourmetCookingStation` | — | patched, untested in-game |
+| Egg Cracker | `EggCrackerConfig` | `ComplexFabricator` | — | patched, untested in-game |
+| Clothing Fabricator | `ClothingFabricatorConfig` | `ComplexFabricator` | — | patched, untested in-game |
+| Suit Fabricator | `SuitFabricatorConfig` | `ComplexFabricator` | — | patched, untested in-game — one building, not two; Atmo/Lead suits are recipes on it |
+| Apothecary | `ApothecaryConfig` | `Apothecary` | — | patched, untested in-game |
+| — | | | | |
+| Sludge Press | `SludgePressConfig` | `ComplexFabricator` | `EXPANSION1` or `DLC5` | patched, untested in-game |
+| Emulsifier | `ChemicalRefineryConfig` | `ComplexFabricator` | — | patched, untested in-game |
+| Diamond Press | `DiamondPressConfig` | `ComplexFabricator` | `EXPANSION1` | patched, untested in-game |
+| Plant Pulverizer | `MilkPressConfig` | `ComplexFabricator` | `DLC4` / `DLC5` | patched, untested in-game |
+| Plywood Press | `FabricatedWoodMakerConfig` | `ComplexFabricator` | — | patched, untested in-game — already sets `showProgressBar` itself |
+| Blastshot Maker | `MissileFabricatorConfig` | `ComplexFabricator` | `DLC4` / `EXPANSION1` | patched, untested in-game |
+| Deep Fryer | `DeepfryerConfig` | `Deepfryer` | `DLC2` | patched, untested in-game — keeps its Kitchen `RoomTracker` requirement |
+| Sushi Bar | `SushiBarConfig` | `SushiBar` | `DLC5` | patched, untested in-game — uses `ComplexFabricatorLayeredWorkable` |
+| Crafting Station | `CraftingTableConfig` | `ComplexFabricator` | `DLC3` | patched, untested in-game |
+| Soldering Station | `AdvancedCraftingTableConfig` | `ComplexFabricator` | `DLC3` | patched, untested in-game |
+| Nuclear Apothecary | `AdvancedApothecaryConfig` | `AdvancedApothecary` | `EXPANSION1` | patched, untested in-game — also an `ActiveParticleConsumer` |
+| Clothing Refashionator | `ClothingAlterationStationConfig` | `ComplexFabricator` | — | patched, untested in-game |
+| Orbital Data Collection Lab | `OrbitalResearchCenterConfig` | `ComplexFabricator` | `EXPANSION1` | patched, untested in-game — **balance note below** |
+| Manual Radbolt Generator | `ManualHighEnergyParticleSpawnerConfig` | `ComplexFabricator` | `EXPANSION1` | patched, untested in-game — **balance note below** |
+| — | | | | |
+| Oil Refinery | `OilRefineryConfig` | `OilRefinery` (**not** a fabricator) | — | **experimental, disabled by default** |
+
+DLC column records the constant returned by `GetRequiredDlcIds()`, not a marketing
+name — `DlcManager` only exposes opaque ids (`EXPANSION1_ID`, `DLC2_ID` …). A dash
+means the config declares no DLC requirement. **DLC gating does not affect
+patching**: every one of these config classes ships in the base `Assembly-CSharp`
+regardless of what the player owns, so the Harmony patch always applies and the
+building simply never spawns without its DLC.
+
+`LiquidCooledRefinery`, `GlassForge`, `GourmetCookingStation`, `MicrobeMusher`, `CookingStation`, `Apothecary`, `AdvancedApothecary`, `Deepfryer` and `SushiBar` all derive from `ComplexFabricator`, so `GetComponent<ComplexFabricator>()` finds them. **Use `GetComponent`, never `AddOrGet`** — `AddOrGet` would bolt a second, plain `ComplexFabricator` onto those buildings.
+
+### Balance note: the two that automate labour rather than material
+Twenty-three of these convert material into material, where duplicant labour is
+pure overhead. Two do not:
+
+- **Orbital Data Collection Lab** — automating it means an orbital module yields
+  research databanks with no duplicant aboard the rocket.
+- **Manual Radbolt Generator** — still consumes its uranium (1 kg Uranium Ore →
+  0.5 kg Depleted Uranium + 5 radbolts; Enriched Uranium → 25), so it is not free
+  radbolts, but duplicant labour is the building's whole cost over the powered
+  Radbolt Generator.
+
+Both are mechanically identical to the rest and both ship **enabled**, because the
+mod's premise is that the player wants the automation. They are separated here so
+that a player who does not can find the two toggles to switch off.
 
 `EggCracker` (the component) is a bare `KMonoBehaviour`, but `EggCrackerConfig` also adds a plain `ComplexFabricator`, so it patches like the rest.
 
 Reference implementation (do not patch): `KilnConfig`.
+
+## How the target list was derived
+Repeat this after any content update; it is what found the fourteen the first pass
+missed. Decompile the whole assembly once, then work from the source:
+
+```
+ilspycmd --disable-updatecheck --no-dead-code --no-dead-stores -p -o <out> \
+  -r "<Managed>" "<Managed>\Assembly-CSharp.dll"
+```
+
+1. **Enumerate the fabricator family, do not hand-write it.** The first pass missed
+   buildings because the subclass list was written from memory.
+   `grep -hoE 'class [A-Za-z0-9_]+ : ComplexFabricator\b'` over the decompiled tree
+   gives the real one: `AdvancedApothecary`, `Apothecary`, `CookingStation`,
+   `DataMiner`, `Deepfryer`, `FossilMine`, `GammaRayOven`, `GlassForge`,
+   `GourmetCookingStation`, `LiquidCooledRefinery`, `MicrobeMusher`, `SushiBar`,
+   `UraniumCentrifuge`. Check for second-level subclasses too (there are none at
+   744825). `GammaRayOven` has no config and is referenced by nothing else — it is
+   dead code.
+2. **Grep `*Config.cs` for `AddOrGet<T>` over that whole set**, not just
+   `ComplexFabricator`.
+3. **`duplicantOperated = true` is NOT the test.** The field defaults to `true`, so
+   a config that never mentions it is still duplicant-operated. Six of the original
+   eleven are in that category. The test is: attaches a fabricator AND does not set
+   `duplicantOperated = false`. Already-automatic at 744825, for reference:
+   `KilnConfig`, `ChlorinatorConfig`, `FoodDehydratorConfig`, `RubberMakerConfig`,
+   `SmokerConfig`, `DataMinerConfig`, `UraniumCentrifugeConfig`.
+4. **Confirm each candidate declares its own `override void DoPostConfigureComplete`.**
+   This is a correctness requirement, not a formality — see the warning in
+   `FabricatorPatches.cs`. If a config lacks the override, Harmony resolves the name
+   up the hierarchy to `IBuildingConfig.DoPostConfigureComplete` and patches **every
+   building in the game**. All twenty-five declare it at 744825.
+
+### Deliberately excluded
+| Building | Config class | Why |
+|---|---|---|
+| Omniprinter | `GenericFabricatorConfig` | `CreateBuildingDef` sets `Deprecated = true`. Legacy building, not in the build menu. |
+| Fossil Dig Site | `FossilDigSiteConfig` | Not a machine. `ShowInBuildMenu = false`, deconstruction and demolition disabled; it is a worldgen story-trait POI whose `FossilMine : ComplexFabricator` is driven by `MajorFossilDigSite.Def` with quest criteria. Automating it would excavate the Fossil Hunt questline by itself. |
+
+### Duplicant-operated but a different mechanism — not in scope for the fabricator patch
+Everything that sets `BuildingComplete.isManuallyOperated = true` but is not a
+`ComplexFabricator`. Each would need its own Oil-Refinery-style patch, so do not
+assume any of these is a one-liner:
+
+- **Research** — `ResearchCenterConfig`, `AdvancedResearchCenterConfig`,
+  `CosmicResearchCenterConfig`, `DLC1CosmicResearchCenterConfig`,
+  `NuclearResearchCenterConfig`
+- **Spice Grinder** — `SpiceGrinderConfig`. Its own `SpiceGrinder` state machine and
+  `SpiceGrinderWorkable`, gated on the `CanSpiceGrinder` skill perk. The closest
+  thing to a genuine omission in this list, and the most work.
+- **Power** — `ManualGeneratorConfig`
+- **Critter stations** — `MilkingStationConfig`, `ShearingStationConfig`, and their
+  `Underwater*` variants
+- **Analysis / rocketry** — `ArtifactAnalysisStationConfig`,
+  `GeneticAnalysisStationConfig`, `TelescopeConfig`, `ClusterTelescopeConfig`,
+  `ClusterTelescopeEnclosedConfig`, `MissionControlConfig`,
+  `MissionControlClusterConfig`, `RocketControlStationConfig`
+- **Duplicant services, not machines** — `AstronautTrainingCenterConfig`,
+  `RoleStationConfig`, `ResetSkillsStationConfig`, `CampfireConfig`,
+  `IceKettleConfig`, `IceCooledFanConfig`, `LiquidCooledFanConfig`,
+  `LiquidPumpingStationConfig`, `CompostConfig`
+- **Not machines at all** — `GasValveConfig`, `LiquidValveConfig`, `WaterTrapConfig`
+  set the flag only because duplicants adjust them
+
+`RequiredSkillPerkID` on `ChemicalRefineryConfig`, `AdvancedCraftingTableConfig`,
+`ClothingAlterationStationConfig`, `DeepfryerConfig`, `MissileFabricatorConfig`,
+`OrbitalResearchCenterConfig` and `SushiBarConfig` is a **build** requirement — a
+duplicant with the perk must exist to construct the building. Automation does not
+bypass it and does not interact with it.
 
 ## Background — learn from the mod we're replacing
 The abandoned Workshop mod "Configurable Automatic Machine" (2022) did this by *cloning* each building config into a new "automatic" building. That approach caused its known bugs: the cloned Oil Refinery output oxygen instead of natural gas and wrong oil masses, and the cloned Metal Refinery broke with MISSING/STRINGS errors after a game update. Do NOT clone buildings.
@@ -89,7 +200,7 @@ This also explains the predecessor mod's Oil Refinery bug: cloning a building wh
 - **One patch class per building**, isolated, so a game update breaking one doesn't take down the rest.
 
 ### Conditional patching — use Harmony `Prepare()`
-`base.OnLoad(harmony)` calls `PatchAll()`, which applies every `[HarmonyPatch]` class unconditionally. To honor per-building toggles, each patch class gets a static `Prepare()` that returns `false` when its building is disabled in `config.json`. Do **not** switch to manual `harmony.Patch()` calls; `Prepare()` is the intended mechanism and keeps the patch surface small.
+`base.OnLoad(harmony)` calls `PatchAll()`, which applies every `[HarmonyPatch]` class unconditionally. To honor per-building toggles, each patch class gets a static `Prepare()` that returns `false` when its building is disabled in the options. Do **not** switch to manual `harmony.Patch()` calls; `Prepare()` is the intended mechanism and keeps the patch surface small.
 
 ### Secondary effects to verify in testing
 Work time vs. machine order progress, skill/attribute speed bonuses (will no longer apply — acceptable), animations, and whether the "operate" errand disappears cleanly from the errands list.
@@ -110,7 +221,7 @@ Verified present as identifiers in `Assembly-CSharp.dll` (string-level check onl
 - `ilspycmd` **10.1.1.8388 is installed** at `%USERPROFILE%\.dotnet\tools\ilspycmd.exe`. It is not on PATH in this session's shells; invoke it by full path.
 - **Verify tooling with PowerShell, not the Bash tool.** The Bash tool reported "No .NET SDKs were found" for a machine that has the SDK installed; its `dotnet` resolution is unreliable here. Use the PowerShell tool for `dotnet`, and re-check any negative result before recording it.
 - References (`<Reference>` with `<HintPath>`, `Private=false` so game DLLs aren't copied to output): `Assembly-CSharp.dll`, `Assembly-CSharp-firstpass.dll`, `0Harmony.dll`, `UnityEngine.dll`, `UnityEngine.CoreModule.dll` — all present in the Managed folder above. These five are shared by every mod and are declared **once**, in the monorepo root's `Directory.Build.props`; don't re-declare them here or they'll resolve twice. `Newtonsoft.Json.dll` (needed for `config.json`) is specific to this mod and so stays in `AutoMachines.csproj`.
-- Mod entry point: `AutoMachinesMod : KMod.UserMod2`. Verified shape — `UserMod2` exposes `assembly`, `path` and `mod` properties, and `OnLoad(Harmony)` calls `harmony.PatchAll(assembly)`. `path` is the deployed mod folder, which is where `config.json` is read from.
+- Mod entry point: `AutoMachinesMod : KMod.UserMod2`. Verified shape — `UserMod2` exposes `assembly`, `path` and `mod` properties, and `OnLoad(Harmony)` calls `harmony.PatchAll(assembly)`. `path` is the deployed mod folder, which is where the legacy `config.json` is read from during migration.
 - **Load config before `base.OnLoad(harmony)`.** `PatchAll` evaluates every patch class's `Prepare()` during that call, so settings must already be in memory or every toggle reads as its default.
 - Use `UnityEngine.Debug.Log`, fully qualified — ONI declares its own global `Debug` class, so an unqualified call is ambiguous.
 
@@ -118,16 +229,20 @@ Verified present as identifiers in `Assembly-CSharp.dll` (string-level check onl
 ```
 NuGet.config                                  # repo-scoped nuget.org source
 src/AutoMachines/AutoMachines.csproj
+src/AutoMachines/ILRepack.targets             # the PLib merge — see Build & deploy
 src/AutoMachines/AutoMachinesMod.cs           # UserMod2 entry point
-src/AutoMachines/Settings.cs                  # BuildingIds + config.json load
-src/AutoMachines/Patches/FabricatorPatches.cs # the 11 ComplexFabricator buildings
+src/AutoMachines/Options.cs                   # the PLib options screen; defaults live here
+src/AutoMachines/Settings.cs                  # BuildingIds + facade over Options
+src/AutoMachines/Patches/FabricatorPatches.cs # the 25 ComplexFabricator buildings
 src/AutoMachines/Patches/OilRefineryPatch.cs  # Oil Refinery only (different mechanism)
 mod/mod.yaml                                  # source-controlled, copied on build
 mod/mod_info.yaml                             # source-controlled, copied on build
-mod/config.json                               # default config, copied on build
 ```
 
-The eleven fabricator patches share one file because they are one pattern; each still gets its own `[HarmonyPatch]` class and its own `Prepare()`, so a game update that breaks one building's config class does not stop the other ten from patching.
+No `mod/config.json` any more — PLib owns the settings file now and writes it to
+the game's shared `mods\config\` folder. See Configuration.
+
+The twenty-five fabricator patches share one file because they are one pattern; each still gets its own `[HarmonyPatch]` class and its own `Prepare()`, so a game update that breaks one building's config class does not stop the other twenty-four from patching.
 
 ## Build & deploy
 Build command (verified working, clean):
@@ -136,12 +251,57 @@ Build command (verified working, clean):
 dotnet build src/AutoMachines/AutoMachines.csproj -c Release
 ```
 
-The build does two things after compiling:
+The build does three things after compiling:
 
-1. **`StageMod`** assembles the complete, ready-to-install mod folder at `dist/AutoMachines/` (gitignored). This always succeeds.
-2. **`DeployToLocalMods`** tries to copy that into the game's Local mods folder. This is `ContinueOnError` on purpose — see below.
+1. **`MergePLib`** ILRepacks PLib into `AutoMachines.dll`. Lives in
+   `src/AutoMachines/ILRepack.targets`, not the csproj — see the trap below.
+2. **`StageMod`** assembles the complete, ready-to-install mod folder at `dist/AutoMachines/` (gitignored). This always succeeds.
+3. **`DeployToLocalMods`** tries to copy that into the game's Local mods folder. This is `ContinueOnError` on purpose — see below.
 
-`config.json` is copied **only if absent** in the deploy folder, so a player's edits survive rebuilds. Delete it there to regenerate defaults.
+### PLib, and the ILRepack.targets trap
+PLib arrives via NuGet (`PLib` 4.25.0) and is **merged into the mod assembly**,
+not shipped beside it: PLib is designed that way so every mod carries its own
+version and they arbitrate at runtime through `PRegistry`. ONI does not probe the
+mod folder for sibling assemblies, so an unmerged build loads and then throws
+`FileNotFoundException` on PLib at first use. Merging needs
+`CopyLocalLockFileAssemblies=true` to override the monorepo-wide `false`, or
+`PLib.dll` never reaches the output for ILRepack to find.
+
+**The merge target must live in `src/AutoMachines/ILRepack.targets`, and that
+file's existence is load-bearing.** `ILRepack.Lib.MSBuild.Task` injects a merge
+target of its own:
+
+```
+<Target Name="ILRepack" AfterTargets="Build"
+        Condition="$(Configuration.Contains('Release')) and !Exists('$(ILRepackTargetsFile)')">
+```
+
+`$(ILRepackTargetsFile)` defaults to `$(ProjectDir)ILRepack.targets`. That default
+target globs `$(OutputPath)*.dll` and passes no `LibraryPath`, so it cannot
+resolve the game's `Newtonsoft.Json` (7.0.0.0, referenced `Private=false` and
+therefore never copied to the output), and the build dies with:
+
+```
+error : Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0, ...'
+```
+
+Two things make this hard to diagnose:
+
+- **It is Release-only.** A Debug build never trips it. Anything documented as
+  `dotnet build ONIMods.sln` — which defaults to Debug — will look fine.
+- **The error is reported against the package's `.targets` file**, not against
+  this project, so it reads like a broken package rather than a project setting.
+
+Creating `ILRepack.targets` both suppresses the default target and gives the real
+merge a home. If that error ever reappears, check the file still exists before
+suspecting anything else.
+
+`Internalize="true"` keeps PLib's ~188 merged types private to the assembly, and
+`LibraryPath="$(GameLibsDir)"` is what lets ILRepack resolve the game references
+it finds in the inputs without merging them in.
+
+No `config.json` is staged or deployed any more. PLib writes the settings file to
+the shared `mods\config\` folder on first run; see Configuration.
 
 ### The deploy path is NOT `%USERPROFILE%\Documents`
 Two Windows behaviours bite here, and both were hit on this machine:
@@ -149,7 +309,15 @@ Two Windows behaviours bite here, and both were hit on this machine:
 - **OneDrive Known Folder Move.** The real Documents folder is `%USERPROFILE%\OneDrive\Documents`, and that is where the game reads and writes (save files live there). `$(USERPROFILE)\Documents` still resolves to an unredirected, *game-invisible* folder — deploying there looks like it worked and does nothing. The csproj therefore resolves `$([System.Environment]::GetFolderPath(SpecialFolder.MyDocuments))`, which follows the redirect. Never hardcode `$(USERPROFILE)\Documents`.
 - **Windows Controlled Folder Access** (Defender ransomware protection, `Get-MpPreference | Select EnableControlledFolderAccess`) is **enabled on this machine**. It guards the real Documents folder and blocks MSBuild from writing there, failing with a *misleading* `Could not find file` on create — it reads like the path is missing when the write was actually denied. Reads are unaffected, which is why directory listings look fine.
 
-So the automatic deploy currently fails by design-of-the-OS, not by bug. The build prints what to do and still succeeds. To install:
+So the automatic deploy can fail by design-of-the-OS rather than by bug. The build prints what to do and still succeeds.
+
+> **Update:** auto-deploy **succeeded** on this machine throughout the options-screen
+> work — every build reported `AutoMachines deployed to ...\mods\Local\AutoMachines`.
+> Controlled Folder Access either got an allowance for MSBuild or was turned off
+> since this was written. Treat the section below as the fallback, not the
+> expected outcome, and re-check before blaming it for a missing deploy.
+
+If it does get blocked, to install:
 
 **Copy `dist\AutoMachines` into `%USERPROFILE%\OneDrive\Documents\Klei\OxygenNotIncluded\mods\Local\` using File Explorer** — Explorer is a trusted app, so Controlled Folder Access allows it.
 
@@ -257,18 +425,76 @@ Game log: `%USERPROFILE%\AppData\LocalLow\Klei\Oxygen Not Included\Player.log`
 Iteration is log-driven — read this after every in-game test. Harmony patch failures, MISSING/STRINGS errors, and mod load errors all surface here.
 
 ## Configuration
-**v1 (done):** JSON config in the mod folder (`config.json`), one boolean per building, read at load; patches gated via `Prepare()` as described above. Defaults: all eleven fabricator buildings enabled, `OilRefinery` disabled. Unknown keys are ignored with a log line, and a malformed file falls back to defaults rather than stopping the mod from loading.
-**v2 (later, only after v1 works):** in-game options menu via Peter Han's PLib (NuGet package `PLib`; note PLib must be ILRepack-merged into the mod DLL per its docs). Don't start here — it adds build complexity.
+**v1 (superseded):** JSON config in the mod folder (`config.json`), one boolean per building, hand-parsed at load.
+
+**v2 (done):** in-game options screen via Peter Han's PLib. `Options.cs` declares one
+`[Option]` bool property per building; `Settings` is a thin facade over it. Defaults:
+all twenty-five fabricator buildings enabled, `OilRefinery` disabled.
+
+- **`Options.cs` is the single source of truth for defaults.** The constructor sets
+  them; `Settings` reflects over a fresh instance rather than keeping a second list.
+- **Property names are the building IDs**, which makes them the JSON keys and lets the
+  legacy migration match by name. Adding a building means one property in `Options.cs`
+  and one patch class — `Settings` needs no edit.
+- **Patch classes were not touched by the v1→v2 move.** They still call
+  `Settings.IsEnabled(buildingId)`; only what backs that call changed.
+
+### Every option is `[RestartRequired]`, and that is structural
+Not a PLib limitation. `Prepare()` is evaluated once during `PatchAll` at mod load,
+and `DoPostConfigureComplete` then runs once per process while `Assets` builds the
+prefabs. Nothing re-reads the settings afterwards, so a checkbox toggled mid-session
+cannot retroactively change a prefab that already exists.
+
+`Settings.enabled` is a snapshot taken at load and is deliberately **not** refreshed by
+`OnOptionsChanged`, so it stays an honest record of what is actually patched this
+session rather than claiming changes that have not happened.
+
+Making it live would mean dropping the `Prepare()` gating, always patching, and on
+`OnOptionsChanged` walking both the prefab and every existing `ComplexFabricator`
+instance. That is a real redesign, not a tweak — do not start it casually.
+
+### The settings file moved, and migrates itself once
+`[ConfigFile("config.json", true, true)]` — the third argument is
+`SharedConfigLocation`, which puts the file in the game's shared `mods\config\`
+directory instead of the mod folder. This is a fix, not just tidiness: **Steam
+overwrites the mod folder on every Workshop update**, which silently discarded
+subscribers' settings for as long as the file lived there.
+
+`Settings.MigrateLegacyConfig` runs only when `POptions.ReadSettings` returns null —
+i.e. on a fresh install or the first launch after this change. It reads any old
+mod-folder `config.json`, copies across every key that matches an `Options` property,
+writes the result to the new location, and logs what it did. After that the legacy
+file is never read again. It is deliberately **not deleted**: on a Workshop install it
+sits in the mod folder, which is not ours to tidy up.
+
+Use `POptions.GetConfigFilePath(typeof(Options))` to find where the file actually
+landed; `Settings.Load` logs it at startup.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with mod enabled, no crash, mod listed in Mods menu.
-2. Build a Rock Crusher, queue a recipe, deliver materials via dupe or sweeper → it runs with **no dupe operating it**, and shows a progress bar. Then repeat for the other ten fabricator buildings.
+2. Build a Rock Crusher, queue a recipe, deliver materials via dupe or sweeper → it runs with **no dupe operating it**, and shows a progress bar. Then repeat for the other twenty-four fabricator buildings, as far as owned DLC allows.
 3. Output element and mass are IDENTICAL to vanilla (this is where the old mod failed). Check the Metal Refinery's coolant output and, if `OilRefinery` is ever enabled, that it still emits Methane at 0.09 kg/s and Petroleum at 5 kg/s — not Oxygen.
 4. Errands overlay shows no orphaned "operate" chore.
 5. Save/load cycle works; disable mod → save still loads. (See the no-save-persisted-state constraint under Architecture — this test confirms it, it does not discover it.)
-6. `Player.log` clean of Harmony and mod-load errors.
+6. `Player.log` clean of Harmony and mod-load errors. In particular no
+   `FileNotFoundException` on PLib — that means the ILRepack merge did not happen.
+7. **Options screen.** A gear icon appears next to Auto Machines in the Mods menu; it
+   opens showing all 26 toggles under the four categories (Base Game, DLC Buildings,
+   Balance Sensitive, Experimental), each marked as requiring a restart.
+8. **Settings round-trip.** Turn one building off, save, confirm the file at the path
+   `Settings.Load` logged now shows it false, restart, and confirm that building is
+   duplicant-operated again while the others are not.
+9. **Legacy migration.** With an old-style `config.json` present in the mod folder and
+   no file yet in the shared location, launch once and check `Player.log` for
+   `migrated N setting(s) from the old config.json`, with the customised values
+   showing in the options screen.
 
 ## Working style
-- All twelve buildings were implemented in one pass at the user's explicit direction, superseding the original "Rock Crusher first, then generalize" rule. The risk that rule guarded against was handled instead by decompiling and diffing **all twelve** configs before writing any code — which is what surfaced the Oil Refinery and `ComplexFabricator`-subclass differences. If that verification step is ever skipped, go back to one-building-at-a-time.
+- The first twelve buildings were implemented in one pass at the user's explicit direction, superseding the original "Rock Crusher first, then generalize" rule. The risk that rule guarded against was handled instead by decompiling and diffing **all twelve** configs before writing any code — which is what surfaced the Oil Refinery and `ComplexFabricator`-subclass differences. If that verification step is ever skipped, go back to one-building-at-a-time.
+- The second pass added fourteen more, the same way and for the same reason: the
+  original subclass list had been written from memory rather than enumerated, so it
+  missed every DLC fabricator plus several base-game ones. **Enumerate from the
+  assembly; never hand-write a list of game types.** See "How the target list was
+  derived".
 - **Nothing is verified in-game yet.** Everything above is verified against decompiled source and a clean compile only. Update the Status column as buildings are actually play-tested.
 - When a game update later breaks the mod, the fix procedure is: re-decompile the affected config, diff against build `744825` assumptions, adjust the patch.
