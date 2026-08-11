@@ -1,0 +1,96 @@
+Steam Workshop change notes for Auto Machines.
+
+Paste the block below the line into the "Change Notes" box when updating the
+Workshop item. It is BBCode, which is what Steam's description and change-note
+fields accept -- do not convert it to Markdown.
+
+Kept in this folder rather than in mod/ on purpose: mod/ holds the files that get
+packaged, and this is not one of them.
+
+================================================================================
+v1.1 -- 14 more machines, and settings moved into the game
+================================================================================
+
+[h1]14 more machines[/h1]
+
+Auto Machines now automates [b]25[/b] duplicant-operated fabricators, up from 11.
+Newly covered:
+
+[list]
+[*][b]Sludge Press[/b]
+[*][b]Emulsifier[/b]
+[*][b]Diamond Press[/b]
+[*][b]Plant Pulverizer[/b]
+[*][b]Plywood Press[/b]
+[*][b]Blastshot Maker[/b]
+[*][b]Deep Fryer[/b]
+[*][b]Sushi Bar[/b]
+[*][b]Crafting Station[/b]
+[*][b]Soldering Station[/b]
+[*][b]Nuclear Apothecary[/b]
+[*][b]Clothing Refashionator[/b]
+[*][b]Orbital Data Collection Lab[/b]
+[*][b]Manual Radbolt Generator[/b]
+[/list]
+
+That covers the base game and every DLC. You do not need any particular DLC
+installed -- buildings you do not own simply never appear, and nothing else
+changes.
+
+The originals are untouched: Rock Crusher, Metal Refinery, Glass Forge,
+Supermaterial Refinery, Microbe Musher, Electric Grill, Gas Range, Egg Cracker,
+Textile Loom, Exosuit Forge and Apothecary.
+
+[h1]Settings are now in the Mods menu[/h1]
+
+No more hand-editing [b]config.json[/b]. Open the [b]Mods[/b] menu, click the
+gear icon next to Auto Machines, and every building has its own checkbox, sorted
+into Base Game, DLC Buildings, Balance Sensitive and Experimental.
+
+[b]Your settings now survive updates.[/b] This is the part worth calling out. The
+old config.json lived inside the mod folder, which Steam overwrites every time
+the mod updates -- so if you had customised it, your choices were being quietly
+reset each time. The settings file now lives outside the mod folder, in the
+game's shared mods config directory, where updates cannot touch it.
+
+[b]If you had customised the old config.json, it is migrated for you[/b] on first
+launch. Nothing to do; your existing choices carry across.
+
+[b]Changes take effect after a restart.[/b] Each option says so. Which machines
+are automated is decided while the game loads, so a checkbox toggled mid-session
+applies the next time you start the game.
+
+[h1]Two worth a look before you play[/h1]
+
+Every machine ships enabled, including these two. They work exactly like the
+rest, but unlike the others they remove duplicant labour from something the game
+otherwise gates behind that labour, so you may prefer them off:
+
+[list]
+[*][b]Orbital Data Collection Lab[/b] -- automated, an orbital module produces
+research databanks with no duplicant aboard the rocket.
+[*][b]Manual Radbolt Generator[/b] -- it still consumes its uranium, so this is
+not free radbolts, but duplicant labour is the building's entire cost over the
+powered Radbolt Generator.
+[/list]
+
+Both are a single checkbox in the [b]Balance Sensitive[/b] category.
+
+[h1]Unchanged[/h1]
+
+[list]
+[*][b]Recipes, outputs and masses are identical to vanilla.[/b] Auto Machines
+patches the existing buildings in place rather than cloning them into new ones,
+which is what keeps outputs exactly stock.
+[*][b]Nothing is written to your saves.[/b] A save made with the mod on still
+loads with it off.
+[*]Skill and attribute speed bonuses no longer apply to an automated machine,
+since no duplicant is operating it. That has always been the trade.
+[/list]
+
+[h1]Reporting a problem[/h1]
+
+The log at
+[b]%USERPROFILE%\AppData\LocalLow\Klei\Oxygen Not Included\Player.log[/b]
+is what identifies almost any issue. Please include it, along with which
+buildings misbehaved and which DLC you have installed.
