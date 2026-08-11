@@ -170,12 +170,11 @@ Three choices worth keeping:
   `SelectOneOptionsEntry`, and `[Option]` on the enum *members* supplies their
   display names. A checkbox called "material independent insulation" would need
   its unchecked meaning explained in a tooltip; two named options do not.
-- **Floats get `LogFloatOptionsEntry`**, registered in `OnLoad` with
-  `OptionsHandlers.AddOptionClass(typeof(float), typeof(LogFloatOptionsEntry))`
-  — which is scoped to this mod, not global. Insulation strength runs from
-  0.00001 to 1; on a linear slider every useful value sits in the leftmost
-  pixels. `LogFloatOptionsEntry` throws if its `[Limit]` minimum is <= 0, so the
-  limit cannot be relaxed to zero.
+- **Floats get `LogFloatOptionsEntry`**, registered in `OnLoad`. Insulation
+  strength runs from 0.00001 to 1; on a linear slider every useful value sits in
+  the leftmost pixels. `LogFloatOptionsEntry` throws if its `[Limit]` minimum is
+  <= 0, so the limit cannot be relaxed to zero. **Registering it drags in the
+  whole handler table — see below.**
 - **`[ConfigFile(..., SharedConfigLocation: true)]`** puts the file under the
   game's `mods/config/`, so it survives updating or reinstalling the mod. PLib's
   documented trade-off is that it may not be removed on uninstall.
@@ -190,6 +189,45 @@ Both settings carry `[RestartRequired]` and it is not a cop-out: the strength is
 baked into `BuildingDef.ThermalConductivity` at creation and the mode decides
 which component `ConfigureBuildingTemplate` adds. Neither is reachable on a def
 that already exists.
+
+### Touching the options handler table means owning all of it
+`InsulatedFarmTilesMod.RegisterOptionHandlers` registers eight widget types when
+only one is wanted. That is not padding, and **must not be trimmed to "just the
+types this mod uses"**:
+
+```csharp
+// OptionsHandlers.AddOptionClass
+if (... || OPTIONS_HANDLERS.ContainsKey(optionType) || ...) return;   // first wins
+
+// OptionsHandlers.InitPredefinedOptions, called from OptionsEntry.BuildOptions
+if (OPTIONS_HANDLERS.Count < 1) { ...register bool, int, float, string... }
+```
+
+PLib populates the table lazily, when the dialog is first built — and only if it
+is still empty. Registering anything in `OnLoad` makes it non-empty, so PLib's
+own initialisation silently becomes a no-op and **every type not registered here
+has no widget at all**. A property of that type renders as nothing: no row, no
+warning, no log line.
+
+Today that is invisible, because the mod's only two options are an `enum` and a
+`float`, and enums never reach this table — `OptionsHandlers.FindOptionClass`
+special-cases `propertyType.IsEnum` and builds a `SelectOneOptionsEntry` before
+the dictionary lookup. Add a `bool` without the `bool` line present and the
+dialog would quietly lose a row.
+
+`ColorOptionsEntry` and `Color32OptionsEntry` are `internal` to PLib and cannot
+be registered from outside it, so suppressing `InitPredefinedOptions` costs this
+mod colour options permanently. Accepted; revisit the approach if one is ever
+wanted.
+
+The per-property alternative, `[DynamicOption(typeof(LogFloatOptionsEntry))]`,
+was considered and rejected. It leaves the table alone and `ExecuteConstructor`
+does supply the `LimitAttribute` and the `[Option]` spec correctly — but
+`TryCreateEntry` iterates `prop.GetCustomAttributes()` and takes the **first**
+attribute that yields an entry. With both `[Option]` and `[DynamicOption]` on the
+property, which one wins depends on attribute order in metadata, which is not
+guaranteed. Same class of undefined-ordering bug as the one fixed in
+`FarmTileInsulation`; not worth trading one for the other.
 
 ### Why PLib is merged rather than shared from one place
 Asked directly, and answered against the assembly rather than from folklore,
