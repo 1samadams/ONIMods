@@ -191,6 +191,35 @@ baked into `BuildingDef.ThermalConductivity` at creation and the mode decides
 which component `ConfigureBuildingTemplate` adds. Neither is reachable on a def
 that already exists.
 
+### Why PLib is merged rather than shared from one place
+Asked directly, and answered against the assembly rather than from folklore,
+because two of the usual justifications turn out to be false:
+
+- **"ONI won't load a sibling DLL."** It will. `KMod.DLLLoader.LoadDLLs` walks
+  `directoryInfo.GetFiles()` and `Assembly.LoadFrom`s *every* top-level `.dll` in
+  the mod's folder. A loose `PLib.dll` beside the mod assembly loads fine.
+- **"A loose PLib would get `PatchAll`ed by the default `UserMod2` the loader
+  creates for it."** It would not. The loader does create one, and
+  `UserMod2.OnLoad` is `harmony.PatchAll(assembly)` — but PLib declares no
+  `[HarmonyPatch]` classes at all. It applies everything programmatically through
+  `PPatchManager` / `PRegistry`, so `PatchAll` over it finds nothing.
+
+The reasons that do hold:
+
+- **There is no shared location and no way to point at one.** `Mod.ContentPath`
+  is `Path.Combine(label.install_path, relative_root)` — each mod's own folder,
+  and the only path handed to `LoadDLLs`.
+- **There is no dependency mechanism.** `KMod.Mod.PackagedModInfo` carries only
+  `requiredDlcIds`, `forbiddenDlcIds`, `minimumSupportedBuild`, `APIVersion` and
+  `version`. No requires, no load-order declaration. A "PLib mod" could not
+  announce itself, and dependants could not demand it be loaded first.
+- **Version arbitration is the whole design.** PLib expects each mod to carry its
+  own internalised copy and negotiate the newest at runtime via `PRegistry`.
+  Loose copies bind by assembly identity, so whichever loads first wins for the
+  whole process, which is the exact collision `PRegistry` exists to resolve.
+
+So: merged, once per mod, ~344 KB each. That is the supported shape.
+
 ## The ILRepack double-merge trap
 **`src/InsulatedFarmTiles/ILRepack.targets` must keep that exact name and
 location.** Its existence is load-bearing, separately from its contents.
@@ -203,18 +232,22 @@ location.** Its existence is load-bearing, separately from its contents.
 ```
 
 where `$(ILRepackTargetsFile)` defaults to `$(ProjectDir)ILRepack.targets`. That
-default merges `$(OutputPath)*.dll` indiscriminately, **in place**, with no
-`LibraryPath`. Add a hand-written merge target as well and the assembly is
-repacked twice per build; the second pass reads an assembly whose PLib is
-already internalised and dies with
+default globs `$(OutputPath)*.dll` as its inputs, merges **in place**, and passes
+**no `LibraryPath`** — so it cannot resolve the game's `Newtonsoft.Json`
+(7.0.0.0, referenced `Private=false` and therefore deliberately never copied to
+the output) and the build dies while merely *reading* its inputs:
 
 ```
-Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0, ...'
+error : Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0, ...'
 ```
 
-because it has no `LibraryPath` pointing at the game's copy. It only bites in
-Release, and only after the first successful build — so it reads as "rebuilds
-are broken" rather than as a packaging mistake.
+Note the Release-only condition, which is exactly why this hides. The repo's
+documented build command defaults to **Debug**, where the injected target never
+fires. It is not a rebuild problem and it is not caused by re-merging an
+already-internalised assembly — it fails on the *first* Release build, on inputs
+it cannot read. `PrivateAssets="all"` does not prevent the injection either; that
+governs flow to consumers of *your* package, not build assets flowing into this
+project.
 
 Putting the real target in `ILRepack.targets` is the package's own opt-out: it
 imports that file and skips both its default merge and the
@@ -222,11 +255,13 @@ imports that file and skips both its default merge and the
 
 Two further details in that file, both deliberate:
 
-- **Output goes to `bin/Release/merged/`, never over `$(TargetPath)`.** Merging
-  in place overwrites the compiler's output with an already-internalised
-  assembly, so the next build feeds that back in. Keeping them apart means every
-  merge starts from the same clean pair, and the target is safe to run on every
-  build. Staging and deploy both copy from `merged/`.
+- **Output goes to `bin/Release/merged/`, never over `$(TargetPath)`.** This is a
+  separate concern from the injected target above, and outlives it: our own
+  target runs on every build, but compilation is skipped when nothing changed,
+  so an in-place merge would leave `$(TargetPath)` holding an already-internalised
+  assembly and the next build would merge PLib into it a second time. Keeping
+  them apart means every merge starts from the same clean pair. Staging and
+  deploy both copy from `merged/`.
 - **`$(MergedAssembly)` is set inside the target, not in a `PropertyGroup`.**
   `$(TargetDir)` and `$(TargetFileName)` come from the SDK targets, imported
   *after* the project body, so at evaluation time `$(TargetDir)merged\`
