@@ -10,7 +10,7 @@ solution, `ONIMods.sln`, builds them all.
 
 | Mod | Folder | What it does | Workshop |
 | --- | --- | --- | --- |
-| **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable in `config.json`. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
+| **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered — 25 buildings across the base game and every DLC. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable from the in-game mod options screen. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
 | **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
 | **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and genuinely unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. The four cone fixtures aim in all four directions when *Rotate Everything* is installed. Vanilla lights are left untouched. Every fixture is tunable in `config.json`. | _local only — not published_ |
 | **Fast Insulated Self Sealing AirLock** | [`FastInsulatedSelfSealingAirLock/`](FastInsulatedSelfSealingAirLock/) | A 1×2 manual pressure door that stays a perfect seal in the simulation while still animating open for Duplicants — gas, liquid and heat are all blocked unless the door is explicitly set to Opened. Door speed is configurable from 1× to 20×. A community continuation of Neavo's mod; see [`NOTICE.md`](FastInsulatedSelfSealingAirLock/mod/NOTICE.md) for the full lineage. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3755915137) |
@@ -105,7 +105,7 @@ ONIMods/
 ├── NuGet.config                     repo-scoped nuget.org source
 ├── ONIMods.sln
 ├── AutoMachines/
-│   ├── mod/                         mod.yaml, mod_info.yaml, config.json
+│   ├── mod/                         mod.yaml, mod_info.yaml
 │   └── src/AutoMachines/            sources + mod-specific build settings
 ├── UnlockAllBlueprints/
 │   ├── mod/                         mod.yaml, mod_info.yaml
@@ -122,8 +122,20 @@ ONIMods/
 target framework, the shared game references and the
 `Microsoft.NETFramework.ReferenceAssemblies` version are declared exactly once.
 A mod needing an extra assembly (Auto Machines, Lumen and Insulated Farm Tiles
-all use `Newtonsoft.Json` to read their `config.json`) declares that in its own
-`.csproj`.
+all use `Newtonsoft.Json` for their settings) declares that in its own `.csproj`.
+
+Auto Machines and Insulated Farm Tiles carry an `ILRepack.targets` next to their
+`.csproj`, holding the target that merges PLib into the mod assembly. **That
+filename is load-bearing**: `ILRepack.Lib.MSBuild.Task` injects a merge target of
+its own in Release builds unless a file of exactly that name exists, and the
+injected one passes no `LibraryPath`, so it cannot resolve the game's
+`Newtonsoft.Json` (referenced `Private=false` and therefore never copied to the
+output). Deleting either file breaks `dotnet build ONIMods.sln -c Release` — and
+only Release, which is what makes it hard to spot.
+
+The injected target is Release-only, so a mod that is only ever built with the
+Debug-defaulting command above never reaches it and does not need the file — Fast
+Insulated Self Sealing AirLock merges PLib without one.
 
 Mods target **.NET Framework 4.8**, not 4.7.1: the game ships `0Harmony.dll`
 built against 4.8, and targeting lower makes MSBuild refuse to resolve it
@@ -192,6 +204,53 @@ ID prefix. Lumen's two patches use one of each.
 Harmony failures, `MISSING.STRINGS` errors and mod load order all surface there,
 and mod load order is visible near the top — useful when a compatibility question
 turns out to be a sequencing question.
+
+### Configuration belongs in the in-game options screen
+
+**Any mod here that has settings should expose them through the Mods-menu options
+dialog, not a `config.json` a player has to find and hand-edit.** New mods start
+that way; existing ones move across as they are touched. Auto Machines and
+Insulated Farm Tiles are converted; Lumen still uses a JSON file.
+
+Editing JSON by hand is the wrong ask of a player who just subscribed on the
+Workshop, and there is a concrete failure mode behind the preference: a config
+file inside the mod folder is **overwritten by Steam on every mod update**, so
+settings silently reset. Both converted mods therefore keep their file in the
+game's shared `mods\config\` directory instead.
+
+#### PLib is what provides it
+
+Peter Han's [PLib](https://github.com/peterhaneve/ONIMods) (NuGet package `PLib`)
+supplies the options dialog — `POptions` and `SingletonOptions`. A mod declares
+one `[Option]`-attributed property per setting on a class implementing `IOptions`,
+registers it in `OnLoad` with `new POptions().RegisterOptions(this, typeof(Options))`,
+and the gear icon appears next to the mod in the Mods menu.
+
+Three things about it are not obvious:
+
+- **PLib is merged into the mod assembly with ILRepack, not shipped beside it.**
+  That is how PLib is designed to be consumed: every mod carries its own copy and
+  they arbitrate at runtime through `PRegistry`. ONI does not probe the mod folder
+  for sibling assemblies, so an unmerged build loads and then throws
+  `FileNotFoundException` on first use. Merging needs
+  `CopyLocalLockFileAssemblies=true` to override the repo-wide `false`, or
+  `PLib.dll` never reaches the output for ILRepack to find.
+- **Settings must be read before `PatchAll`** if patch classes gate themselves on
+  them via Harmony's `Prepare()`, because `PatchAll` evaluates `Prepare()` during
+  the call.
+- **Mark options `[RestartRequired]` when the mod acts on them at load.** Building
+  prefabs are constructed once per process, so a toggle that decides whether a
+  patch exists cannot take effect mid-session, and an options screen that appears
+  to apply live when it does not is worse than one that says so.
+
+### Stay in the mod you were asked to change
+
+Each folder is an independently published mod with its own history, its own
+`CLAUDE.md`, and often its own work in progress. A problem noticed in a
+neighbouring mod is worth *reporting*, not fixing in passing — and worth checking
+against how that mod is actually built before calling it a problem at all. A
+failure that only appears under a configuration a mod never uses is not a defect
+in that mod.
 
 ## Upstream repositories
 
