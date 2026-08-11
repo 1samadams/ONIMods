@@ -216,9 +216,15 @@ the dictionary lookup. Add a `bool` without the `bool` line present and the
 dialog would quietly lose a row.
 
 `ColorOptionsEntry` and `Color32OptionsEntry` are `internal` to PLib and cannot
-be registered from outside it, so suppressing `InitPredefinedOptions` costs this
-mod colour options permanently. Accepted; revisit the approach if one is ever
-wanted.
+be registered from outside it, so suppressing `InitPredefinedOptions` means this
+mod can never have a **`Color`-typed setting** — the colour-swatch picker widget
+in the options dialog. To be clear about what that is and is not: it concerns a
+row in the settings menu, **not** how the tiles render. The tiles' appearance
+comes from Bokonon's kanims in `mod/anim/` (a lavender planter in a grey stone
+frame; the hydroponic darker with purple pipework at its base), which are
+unmodified, deliberately distinct from the vanilla Farm Tile and Hydroponic
+Farm, and were never configurable. Accepted; revisit only if a swatch picker is
+ever genuinely wanted.
 
 The per-property alternative, `[DynamicOption(typeof(LogFloatOptionsEntry))]`,
 was considered and rejected. It leaves the table alone and `ExecuteConstructor`

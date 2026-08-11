@@ -75,12 +75,13 @@ namespace InsulatedFarmTiles
         /// the lookup), so today only the float line matters. The others are here
         /// so that adding a bool or an int later just works.
         ///
-        /// <b>Colour options are the one gap.</b> PLib's <c>ColorOptionsEntry</c>
-        /// and <c>Color32OptionsEntry</c> are <c>internal</c>, so they cannot be
-        /// registered from outside PLib and suppressing
-        /// <c>InitPredefinedOptions</c> costs us them for good. An accepted trade
-        /// in a mod about thermal conductivity; if a colour option is ever wanted
-        /// here, this whole approach has to be revisited.
+        /// <b>The one gap is a <c>Color</c>-typed setting</b>, meaning the
+        /// colour-swatch picker widget in the options dialog -- not the tiles'
+        /// appearance, which comes from the kanims and was never configurable.
+        /// PLib's <c>ColorOptionsEntry</c> and <c>Color32OptionsEntry</c> are
+        /// <c>internal</c>, so they cannot be registered from outside PLib and
+        /// suppressing <c>InitPredefinedOptions</c> costs us them for good. An
+        /// accepted trade in a mod about thermal conductivity.
         ///
         /// Mirrors PLib 4.25.0, which is pinned in the .csproj. Re-check this list
         /// against <c>InitPredefinedOptions</c> when that pin moves.
