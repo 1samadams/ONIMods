@@ -13,9 +13,11 @@ solution, `ONIMods.sln`, builds them all.
 | **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable in `config.json`. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
 | **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
 | **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and genuinely unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. The four cone fixtures aim in all four directions when *Rotate Everything* is installed. Vanilla lights are left untouched. Every fixture is tunable in `config.json`. | _local only — not published_ |
+| **Fast Insulated Self Sealing AirLock** | [`FastInsulatedSelfSealingAirLock/`](FastInsulatedSelfSealingAirLock/) | A 1×2 manual pressure door that stays a perfect seal in the simulation while still animating open for Duplicants — gas, liquid and heat are all blocked unless the door is explicitly set to Opened. Door speed is configurable from 1× to 20×. A community continuation of Neavo's mod; see [`NOTICE.md`](FastInsulatedSelfSealingAirLock/mod/NOTICE.md) for the full lineage. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3755915137) |
 
-All three target `supportedContent: ALL` and mod `APIVersion: 2`, minimum game
-build `744825`.
+All four target `supportedContent: ALL` and mod `APIVersion: 2`. The first three
+require minimum game build `744825`; Fast Insulated Self Sealing AirLock
+declares `737790`.
 
 ## Building
 
@@ -62,10 +64,14 @@ Copy that folder into the game's local mods directory:
 
 Then enable the mod from the in-game **Mods** menu and restart.
 
-> On Windows, Auto Machines and Lumen also try to copy themselves straight into
-> the Local mods folder after each build. If Controlled Folder Access blocks
-> that, the build still succeeds and prints a warning — copy the staged `dist/`
-> folder across by hand.
+> On Windows, Auto Machines, Lumen and Fast Insulated Self Sealing AirLock also
+> try to copy themselves straight into the Local mods folder after each build. If
+> Controlled Folder Access blocks that, the build still succeeds and prints a
+> warning — copy the staged `dist/` folder across by hand.
+
+> Fast Insulated Self Sealing AirLock is also published on the Workshop under the
+> same `staticID`. Keep the Workshop copy disabled while testing a local build,
+> or two mods claim one ID.
 
 ## Publishing to the Steam Workshop
 
@@ -201,7 +207,9 @@ read while working out how the game behaves.
 | --- | --- |
 | [peterhaneve/ONIMods](https://github.com/peterhaneve/ONIMods) — Peter Han | The reference body of ONI mod source. `PLibLighting` in particular shows which lighting methods can safely be patched. Not a dependency of anything here. |
 | [Rotate Everything](https://steamcommunity.com/sharedfiles/filedetails/?id=1715709940) — Jarodamus Prime | Globally makes cone lights honour their direction, which is what Lumen's rotation is built on. Also the source of the inverted light *preview* seen on vanilla Sun Lamps. No public source; decompile the installed DLL. |
-| [ILSpy / `ilspycmd`](https://github.com/icsharpcode/ILSpy) | How every claim in these mods was verified against the real assemblies. |
+| [mrcyclo/ONIInsulatedSelfSealingAirLock](https://github.com/mrcyclo/ONIInsulatedSelfSealingAirLock) — Tuna / mrcyclo | The upstream the Fast Insulated Self Sealing AirLock lineage descends from. A separate mod with its own prefab ID, not a dependency; used as the reference that confirmed this mod's recovered source is faithful. No licence file. |
+| [PLib](https://github.com/peterhaneve/ONIMods) — Peter Han | Options screen and `.po` localisation for the airlock. Pulled from NuGet and ILRepacked into the mod assembly, which is how PLib is meant to ship. |
+| [ILSpy / `ilspycmd`](https://github.com/icsharpcode/ILSpy) | How every claim in these mods was verified against the real assemblies — and how the airlock's lost source was recovered. Pass `-r <game>\Managed` or every game enum decompiles as a bare integer cast. |
 | [Harmony](https://github.com/pardeike/Harmony) | The patching library the game ships (`0Harmony.dll`, built against .NET 4.8 — the reason these mods target net48). |
 | [ONI Wiki](https://oxygennotincluded.wiki.gg/) | Vanilla numbers, for sanity-checking balance against stock buildings. |
 
@@ -211,3 +219,10 @@ and are never committed to or redistributed by this repository.
 ## Licence
 
 Auto Machines carries an MIT licence (`AutoMachines/LICENSE`).
+
+Fast Insulated Self Sealing AirLock is a community continuation of prior work
+that carries no licence of its own: neither Neavo's original nor Tuna / mrcyclo's
+repository has a licence file. Credit, provenance and a standing takedown offer
+to any prior author are recorded in
+[`FastInsulatedSelfSealingAirLock/mod/NOTICE.md`](FastInsulatedSelfSealingAirLock/mod/NOTICE.md),
+which ships with the mod.
