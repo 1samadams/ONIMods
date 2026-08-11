@@ -1,0 +1,68 @@
+<Project>
+
+  <!--
+    Merge PLib into the mod assembly. Without this the mod loads and then throws
+    FileNotFoundException on PLib at first use, because ONI does not probe the
+    mod folder for sibling assemblies.
+
+    WHY THIS FILE EXISTS AT ALL, rather than the target living in the .csproj:
+
+    ILRepack.Lib.MSBuild.Task ships its own target, and it fires
+    AfterTargets="Build" whenever $(Configuration) contains "Release". That
+    default merges IN PLACE, globs every .dll in the output folder as an input,
+    and passes no LibraryPath. Running it alongside a hand written merge target
+    means the mod assembly gets repacked twice per build: the second pass reads
+    an assembly whose PLib is already internalised and dies with
+
+      Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0'
+
+    because it has no LibraryPath pointing at the game's copy. The first build
+    after a clean still succeeds, so the failure only shows up on rebuild.
+
+    The package's own opt out is this file. From its .targets:
+
+      ILRepackTargetsFile   = $(ProjectDir)ILRepack.targets
+      Import Project="$(ILRepackTargetsFile)" Condition="Exists(...)"
+      Target Name="ILRepack" Condition="... and !Exists('$(ILRepackTargetsFile)')"
+
+    So the moment this file exists the package imports it and skips both its
+    default merge and its CleanReferenceCopyLocalPaths companion. There is
+    exactly one merge per build again.
+
+    Two further details, both deliberate:
+
+    - The output is a merged\ subfolder, NOT $(TargetPath). Merging in place
+      would overwrite the compiler's output with an assembly that already has
+      PLib internalised, so the next build would feed an already merged assembly
+      back into ILRepack. Keeping them apart means every merge starts from the
+      same clean pair, and the target is safe to run on every build.
+    - $(MergedAssembly) is set INSIDE the target. $(TargetDir) and
+      $(TargetFileName) come from the SDK targets, which are imported after the
+      project body, so at evaluation time "$(TargetDir)merged\" would collapse to
+      the bare relative "merged\" and ILRepack would resolve it against the
+      project directory.
+
+    LibraryPath is the game's Managed folder because PLib references
+    Newtonsoft.Json 7.0.0.0, the version the game ships; without it ILRepack
+    cannot resolve that reference.
+  -->
+  <Target Name="MergePLib" AfterTargets="Build">
+    <PropertyGroup>
+      <MergedAssembly>$(TargetDir)merged\$(TargetFileName)</MergedAssembly>
+    </PropertyGroup>
+    <MakeDir Directories="$(TargetDir)merged" />
+    <ItemGroup>
+      <MergeInputs Include="$(TargetPath)" />
+      <MergeInputs Include="$(TargetDir)PLib.dll" />
+    </ItemGroup>
+    <ILRepack
+      Parallel="true"
+      Internalize="true"
+      InputAssemblies="@(MergeInputs)"
+      TargetKind="Dll"
+      LibraryPath="$(GameLibsDir)"
+      OutputFile="$(MergedAssembly)" />
+    <Message Importance="high" Text="PLib merged into $(MergedAssembly)" />
+  </Target>
+
+</Project>

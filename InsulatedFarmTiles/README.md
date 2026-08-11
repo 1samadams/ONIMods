@@ -39,29 +39,35 @@ the familiar "build it from something better" progression still applies:
 | Granite | 3.39 | 0.034 |
 | Graphite | 8.0 | 0.080 |
 
-### config.json
+### Options
 
-```json
-{
-  "MaterialIndependentInsulation": false,
-  "TargetConductivity": 0.01
-}
-```
+Both settings live behind the gear icon next to the mod in the **Mods** menu —
+no text editor, no JSON.
 
-`MaterialIndependentInsulation: true` selects erotel's design instead: the build
-material is divided back out, so the effective conductivity is
-`TargetConductivity` whatever the tile is made of. That is stronger than a
-vanilla Insulated Tile on every raw mineral — and, worth knowing before turning
-it on, *weaker* on Ceramic (0.01 instead of 0.0062), because the mode can only
-raise a poor material up to the target, never leave a good one alone. Insulation
-is the exception: below the target already, it is left untouched at 0.00001.
+**Insulation model** picks between the two designs:
 
-`TargetConductivity` means the multiplier in the default mode and the resulting
-effective conductivity in material-independent mode. At `0.01` both readings
-coincide with the vanilla Insulated Tile, which is why it is the default for
-both.
+- *Like a vanilla Insulated Tile* (default) — the table above.
+- *Constant, ignores build material* — erotel's design. The build material is
+  divided back out, so every tile lands on the strength below whatever it is
+  made of. Stronger than a vanilla Insulated Tile on every raw mineral, and
+  worth knowing before turning it on: *weaker* on Ceramic (0.01 instead of
+  0.0062), because the mode can only raise a poor material up to the target,
+  never leave a good one alone. Insulation is the exception — already below the
+  target, it is left untouched at 0.00001.
 
-The file is read once at mod load. Edit it and restart the game.
+**Insulation strength** is a log-scale slider from 0.00001 to 1, because the
+useful range spans five orders of magnitude and a linear slider would bunch all
+of it into the first few pixels. It means the multiplier in the vanilla model
+and the resulting conductivity outright in the constant model; at the default
+`0.01` both readings coincide with the vanilla Insulated Tile, which is why it
+is the default for either.
+
+Both are marked **restart required**, and genuinely are: the strength is baked
+into the building definition when it is created, and the model decides which
+component goes on the prefab. Neither can change on a tile that already exists.
+
+Settings are stored by PLib under the game's `mods/config/` folder rather than in
+the mod folder, so they survive reinstalling or updating the mod.
 
 ## Building
 
@@ -73,9 +79,11 @@ README](../README.md#building) — a `GamePath.local.props` pointing at your gam
 dotnet build InsulatedFarmTiles/src/InsulatedFarmTiles/InsulatedFarmTiles.csproj -c Release
 ```
 
-Stages a ready-to-install folder at `dist/InsulatedFarmTiles/` and then tries to
-copy it into the game's Local mods folder. If Controlled Folder Access blocks
-that, the build still succeeds — copy the staged folder across by hand.
+PLib is pulled from NuGet and ILRepacked into the mod assembly, which is how
+PLib is meant to ship. The build then stages a ready-to-install folder at
+`dist/InsulatedFarmTiles/` and tries to copy it into the game's Local mods
+folder. If Controlled Folder Access blocks that, the build still succeeds — copy
+the staged folder across by hand.
 
 Upload `dist/InsulatedFarmTiles/` to the Workshop, never `mod/`: the latter has
 no DLL and the loader would scan it as empty.

@@ -14,7 +14,7 @@ solution, `ONIMods.sln`, builds them all.
 | **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
 | **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and genuinely unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. The four cone fixtures aim in all four directions when *Rotate Everything* is installed. Vanilla lights are left untouched. Every fixture is tunable in `config.json`. | _local only — not published_ |
 | **Fast Insulated Self Sealing AirLock** | [`FastInsulatedSelfSealingAirLock/`](FastInsulatedSelfSealingAirLock/) | A 1×2 manual pressure door that stays a perfect seal in the simulation while still animating open for Duplicants — gas, liquid and heat are all blocked unless the door is explicitly set to Opened. Door speed is configurable from 1× to 20×. A community continuation of Neavo's mod; see [`NOTICE.md`](FastInsulatedSelfSealingAirLock/mod/NOTICE.md) for the full lineage. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3755915137) |
-| **Insulated Farm Tiles Continued** | [`InsulatedFarmTiles/`](InsulatedFarmTiles/) | A Farm Tile and a Hydroponic Farm Tile that insulate exactly like a vanilla Insulated Tile, so a grow room can be sealed and temperature-controlled while still being watered and fertilised from outside. Insulation strength, and whether it scales with the build material, are set in `config.json`. A community continuation of Bokonon's mod by way of erotel's fork; see [`NOTICE.md`](InsulatedFarmTiles/mod/NOTICE.md) for the full lineage. | _local only — not published_ |
+| **Insulated Farm Tiles Continued** | [`InsulatedFarmTiles/`](InsulatedFarmTiles/) | A Farm Tile and a Hydroponic Farm Tile that insulate exactly like a vanilla Insulated Tile, so a grow room can be sealed and temperature-controlled while still being watered and fertilised from outside. Insulation strength, and whether it scales with the build material, are set from the in-game mod options screen. A community continuation of Bokonon's mod by way of erotel's fork; see [`NOTICE.md`](InsulatedFarmTiles/mod/NOTICE.md) for the full lineage. | _local only — not published_ |
 
 All five target `supportedContent: ALL` and mod `APIVersion: 2`. All require
 minimum game build `744825` except Fast Insulated Self Sealing AirLock, which
@@ -114,7 +114,7 @@ ONIMods/
 │   ├── mod/                         mod.yaml, mod_info.yaml, config.json
 │   └── src/Lumen/                   sources + mod-specific build settings
 └── InsulatedFarmTiles/
-    ├── mod/                         mod.yaml, mod_info.yaml, config.json, NOTICE.md, anim/
+    ├── mod/                         mod.yaml, mod_info.yaml, NOTICE.md, anim/
     └── src/InsulatedFarmTiles/      sources + mod-specific build settings
 ```
 

@@ -24,7 +24,7 @@ namespace InsulatedFarmTiles
         /// </summary>
         public static void ApplyTo(BuildingDef def)
         {
-            def.ThermalConductivity = Settings.Instance.TargetConductivity;
+            def.ThermalConductivity = Settings.Instance.ResolvedConductivity;
         }
 
         /// <summary>

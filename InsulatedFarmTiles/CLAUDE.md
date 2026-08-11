@@ -61,8 +61,9 @@ That multiplication is the bug the whole lineage is about:
 Bokonon's `1/32` is the value insulated *pipes* use, not insulated tiles — a
 player working this out from the code is what the workshop bug report was. erotel
 fixed it by removing the material from the equation entirely; this mod fixes it
-by using the number the vanilla Insulated Tile uses, and keeps erotel's mode
-behind `config.json`. See the README for the player-facing version.
+by using the number the vanilla Insulated Tile uses, and keeps erotel's mode as
+the second entry in the options dropdown. See the README for the player-facing
+version.
 
 ### Buildable materials resolve through a tag, not a category
 `MATERIALS.RAW_MINERALS` is the single string `"BuildableRaw"`. Both a
@@ -157,18 +158,99 @@ value re-applied on every spawn and reset on every cleanup, so nothing survives
 removing the mod except the buildings themselves — which is normal for any mod
 that adds buildings.
 
+## Options are PLib, and the config file is not ours any more
+`Settings` is a `SingletonOptions<Settings>` with `[Option]` attributes, so the
+Mods menu renders the gear dialog and PLib owns reading and writing the file.
+There is no `mod/config.json` and no hand-rolled loader; `Settings.Instance`
+lazily reads through `POptions.ReadSettings`.
+
+Three choices worth keeping:
+
+- **The mode is an `enum`, not a `bool`.** PLib renders enums as a dropdown via
+  `SelectOneOptionsEntry`, and `[Option]` on the enum *members* supplies their
+  display names. A checkbox called "material independent insulation" would need
+  its unchecked meaning explained in a tooltip; two named options do not.
+- **Floats get `LogFloatOptionsEntry`**, registered in `OnLoad` with
+  `OptionsHandlers.AddOptionClass(typeof(float), typeof(LogFloatOptionsEntry))`
+  — which is scoped to this mod, not global. Insulation strength runs from
+  0.00001 to 1; on a linear slider every useful value sits in the leftmost
+  pixels. `LogFloatOptionsEntry` throws if its `[Limit]` minimum is <= 0, so the
+  limit cannot be relaxed to zero.
+- **`[ConfigFile(..., SharedConfigLocation: true)]`** puts the file under the
+  game's `mods/config/`, so it survives updating or reinstalling the mod. PLib's
+  documented trade-off is that it may not be removed on uninstall.
+
+`MaterialIndependentInsulation` and `ResolvedConductivity` are plain properties
+with **no** `[Option]`, which is what keeps them out of the dialog:
+`OptionsEntry.TryCreateEntry` only builds a row from an attribute. The latter
+clamps, because `[Limit]` only constrains the slider and a hand-edited config
+file never goes through it.
+
+Both settings carry `[RestartRequired]` and it is not a cop-out: the strength is
+baked into `BuildingDef.ThermalConductivity` at creation and the mode decides
+which component `ConfigureBuildingTemplate` adds. Neither is reachable on a def
+that already exists.
+
+## The ILRepack double-merge trap
+**`src/InsulatedFarmTiles/ILRepack.targets` must keep that exact name and
+location.** Its existence is load-bearing, separately from its contents.
+
+`ILRepack.Lib.MSBuild.Task` injects a target of its own:
+
+```xml
+<Target Name="ILRepack" AfterTargets="Build"
+        Condition="$(Configuration.Contains('Release')) and !Exists('$(ILRepackTargetsFile)')">
+```
+
+where `$(ILRepackTargetsFile)` defaults to `$(ProjectDir)ILRepack.targets`. That
+default merges `$(OutputPath)*.dll` indiscriminately, **in place**, with no
+`LibraryPath`. Add a hand-written merge target as well and the assembly is
+repacked twice per build; the second pass reads an assembly whose PLib is
+already internalised and dies with
+
+```
+Failed to resolve assembly: 'Newtonsoft.Json, Version=7.0.0.0, ...'
+```
+
+because it has no `LibraryPath` pointing at the game's copy. It only bites in
+Release, and only after the first successful build — so it reads as "rebuilds
+are broken" rather than as a packaging mistake.
+
+Putting the real target in `ILRepack.targets` is the package's own opt-out: it
+imports that file and skips both its default merge and the
+`CleanReferenceCopyLocalPaths` companion.
+
+Two further details in that file, both deliberate:
+
+- **Output goes to `bin/Release/merged/`, never over `$(TargetPath)`.** Merging
+  in place overwrites the compiler's output with an already-internalised
+  assembly, so the next build feeds that back in. Keeping them apart means every
+  merge starts from the same clean pair, and the target is safe to run on every
+  build. Staging and deploy both copy from `merged/`.
+- **`$(MergedAssembly)` is set inside the target, not in a `PropertyGroup`.**
+  `$(TargetDir)` and `$(TargetFileName)` come from the SDK targets, imported
+  *after* the project body, so at evaluation time `$(TargetDir)merged\`
+  collapses to the bare relative `merged\` and ILRepack resolves it against the
+  project directory. Verified with `dotnet msbuild -getProperty:TargetDir`,
+  which returns empty for a body-level property.
+
+And the trap the airlock already documented, which applies verbatim: **MSBuild
+rejects `--` inside XML comments** (MSB4025). Do not write em-dashes as `--` in
+the csproj or in `ILRepack.targets`.
+
 ## Repo layout
 ```
-mod/mod.yaml, mod_info.yaml, config.json, NOTICE.md
+mod/mod.yaml, mod_info.yaml, NOTICE.md            no config.json; PLib owns it
 mod/anim/assets/...                                Bokonon's kanims, unmodified
 src/InsulatedFarmTiles/InsulatedFarmTilesMod.cs    UserMod2 entry; load order matters
-src/InsulatedFarmTiles/Settings.cs                 config.json
+src/InsulatedFarmTiles/Settings.cs                 PLib options + the mode enum
 src/InsulatedFarmTiles/ModStrings.cs               string table registration
 src/InsulatedFarmTiles/FarmTileInsulation.cs       material-independent mode only
 src/InsulatedFarmTiles/Buildings/TileInsulation.cs the one place that picks a mode
 src/InsulatedFarmTiles/Buildings/InsulatedFarmTileConfig.cs
 src/InsulatedFarmTiles/Buildings/InsulatedHydroponicFarmConfig.cs
 src/InsulatedFarmTiles/Patches/RegisterBuildingsPatch.cs   tech + build menu
+src/InsulatedFarmTiles/ILRepack.targets            the PLib merge; name is load-bearing
 ```
 
 `using STRINGS` and `using TUNING` both define a `BUILDINGS`, so
@@ -178,11 +260,16 @@ src/InsulatedFarmTiles/Patches/RegisterBuildingsPatch.cs   tech + build menu
 ```
 dotnet build src/InsulatedFarmTiles/InsulatedFarmTiles.csproj -c Release
 ```
-Stages to `dist/InsulatedFarmTiles/`, then tries to copy into the game's Local
-mods folder. The deploy is `ContinueOnError` because Windows Controlled Folder
-Access guards the real Documents folder; see `AutoMachines/CLAUDE.md` for the
-full explanation. `config.json` is copied only when absent, so player edits
-survive a rebuild.
+PLib arrives via NuGet (`PLib` 4.25.0) and is ILRepacked into the mod assembly,
+which takes it from 15 KB to about 350 KB. This needs
+`CopyLocalLockFileAssemblies=true` to override the monorepo-wide `false`, or
+`PLib.dll` never lands in the output for ILRepack to find.
+
+Stages to `dist/InsulatedFarmTiles/` from `bin/Release/merged/`, then tries to
+copy into the game's Local mods folder. The deploy is `ContinueOnError` because
+Windows Controlled Folder Access guards the real Documents folder; see
+`AutoMachines/CLAUDE.md` for the full explanation. Nothing copies a config file
+any more — PLib writes one to `mods/config/` on first run.
 
 On this machine the deploy currently **succeeds**, to
 `C:\Users\1sama\OneDrive\Documents\Klei\OxygenNotIncluded\mods\Local\InsulatedFarmTiles`.
@@ -199,9 +286,11 @@ Upload `dist/InsulatedFarmTiles/`, never `mod/`. Full loader rules in
 `AutoMachines/CLAUDE.md`.
 
 ## Status
-**Compiles clean, zero warnings, staged and deployed. NOT yet play-tested.**
-Every claim above is verified against the assembly or the element data; none of
-it is verified in game. The checklist below is what would establish that.
+**Compiles clean, zero warnings, PLib merged, staged and deployed. NOT yet
+play-tested.** Every claim above is verified against the assembly, the element
+data or the build, and the double-merge fix is verified by three consecutive
+Release rebuilds all succeeding. None of it is verified in game. The checklist
+below is what would establish that.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, listed in the Mods menu.
@@ -224,9 +313,22 @@ it is verified in game. The checklist below is what would establish that.
 8. Deconstruct one and confirm the cell stops insulating — heat crosses it again.
    This is the `OnCleanUp` reset.
 9. Build and deconstruct timing feels like a vanilla farm tile, not 10× slower.
-10. Set `"MaterialIndependentInsulation": true`, restart, rebuild from Sandstone
-    and confirm it now insulates *better* than a vanilla Insulated Tile.
-11. Save/load cycle; tiles come back with insulation intact and plants alive.
-12. `Player.log` clean of Harmony errors and MISSING.STRINGS errors.
-13. If any save used Bokonon's or erotel's version: enable this one with that one
+10. The **gear icon** appears next to the mod in the Mods menu and opens a dialog
+    with two rows: a dropdown naming both insulation models, and a slider for
+    strength. No gear at all means `RegisterOptions` did not run; a dialog with
+    extra rows means an attribute leaked onto a helper property.
+11. The strength slider moves sensibly across its whole range rather than
+    bunching every useful value at the left end. Bunching means the
+    `LogFloatOptionsEntry` registration was lost and it fell back to linear.
+12. Both rows show the **restart required** marker.
+13. Change the model to *Constant, ignores build material*, restart, rebuild from
+    Sandstone → it now insulates *better* than a vanilla Insulated Tile. Change
+    it back and restart → the material matters again.
+14. Settings round-trip to `mods\config\` and survive a rebuild-and-redeploy of
+    the mod, which is the point of the shared config location.
+15. Save/load cycle; tiles come back with insulation intact and plants alive.
+16. `Player.log` clean of Harmony errors and MISSING.STRINGS errors. PLib logs
+    its version on load; a `FileNotFoundException` on PLib means the ILRepack
+    merge did not happen or the unmerged DLL got staged.
+17. If any save used Bokonon's or erotel's version: enable this one with that one
     disabled and confirm existing tiles load rather than vanishing.

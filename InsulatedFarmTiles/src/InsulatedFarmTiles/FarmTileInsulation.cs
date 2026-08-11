@@ -28,7 +28,7 @@ namespace InsulatedFarmTiles
         {
             base.OnSpawn();
 
-            float target = Settings.Instance.TargetConductivity;
+            float target = Settings.Instance.ResolvedConductivity;
             PrimaryElement pe = GetComponent<PrimaryElement>();
             float materialConductivity = pe?.Element?.thermalConductivity ?? 0f;
 

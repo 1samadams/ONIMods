@@ -1,93 +1,106 @@
-using System.IO;
+using System.Collections.Generic;
 using Newtonsoft.Json;
+using PeterHan.PLib.Options;
+using UnityEngine;
 
 namespace InsulatedFarmTiles
 {
     /// <summary>
-    /// config.json, loaded once at mod load.
-    ///
-    /// It must be read before the building definitions are created:
-    /// <see cref="TargetConductivity"/> is baked into
-    /// <c>BuildingDef.ThermalConductivity</c> by <c>CreateBuildingDef</c>, and
-    /// <see cref="MaterialIndependentInsulation"/> decides which insulating
-    /// component <c>ConfigureBuildingTemplate</c> puts on the prefab. Loading it
-    /// late would silently give both tiles the defaults.
-    ///
-    /// A malformed file falls back to defaults rather than stopping the mod from
-    /// loading -- a typo in a config file should not cost the player their save's
-    /// buildings.
+    /// How the tiles insulate. An enum rather than a bool so the options dialog
+    /// renders a dropdown naming both designs, instead of a checkbox whose
+    /// unchecked state has to be explained in a tooltip.
     /// </summary>
-    public class Settings
+    public enum InsulationMode
+    {
+        [Option("Like a vanilla Insulated Tile",
+            "The build material still matters, exactly as it does for a vanilla Insulated Tile: "
+            + "Ceramic insulates better than Sandstone, Insulation better still.")]
+        VanillaTileParity,
+
+        [Option("Constant, ignores build material",
+            "Every tile insulates the same no matter what it is built from. Stronger than a vanilla "
+            + "Insulated Tile on every raw mineral - but weaker on Ceramic, which is already better "
+            + "than the target and gets pulled back down to it.")]
+        MaterialIndependent
+    }
+
+    /// <summary>
+    /// Mod options, shown in the Mods menu behind the gear icon and persisted by
+    /// PLib.
+    ///
+    /// Both settings are <c>[RestartRequired]</c> and genuinely are:
+    /// <see cref="TargetConductivity"/> is baked into
+    /// <c>BuildingDef.ThermalConductivity</c> when the definition is created, and
+    /// <see cref="Mode"/> decides which insulating component
+    /// <c>ConfigureBuildingTemplate</c> puts on the prefab. Neither can be changed
+    /// on a definition that already exists, so PLib's restart warning is the
+    /// honest answer rather than a cop-out.
+    ///
+    /// <c>SharedConfigLocation: true</c> puts the file under the game's
+    /// <c>mods/config/</c> rather than in the mod folder, so it survives
+    /// reinstalling or updating the mod. The trade-off PLib documents is that it
+    /// is not necessarily removed on uninstall.
+    /// </summary>
+    [ConfigFile("config.json", true, true)]
+    [JsonObject(MemberSerialization.OptIn)]
+    [ModInfo("https://github.com/1samadams/ONIMods")]
+    public sealed class Settings : SingletonOptions<Settings>, IOptions
     {
         /// <summary>
-        /// How the tiles insulate.
-        ///
-        /// <c>false</c> (default) is vanilla Insulated Tile parity: the game's own
-        /// <c>Insulator</c> component applies <see cref="TargetConductivity"/> as
-        /// the cell's insulation, and the sim multiplies it by the build
-        /// material's own conductivity. Sandstone lands on 0.029, Ceramic on
-        /// 0.0062 -- exactly the numbers a vanilla Insulated Tile gives, so the
-        /// familiar "build it from something better" progression is preserved and
-        /// the building's info panel tells the truth.
-        ///
-        /// <c>true</c> is erotel's fork behaviour: <see cref="FarmTileInsulation"/>
-        /// divides out the material, forcing the effective conductivity to
-        /// <see cref="TargetConductivity"/> whatever the tile is built from. Every
-        /// raw mineral then insulates better than a vanilla Insulated Tile of the
-        /// same material -- and Ceramic insulates *worse* than it otherwise would,
-        /// because the clamp only ever raises a poor material to the target.
+        /// Below this the slider is a lie -- Insulation, the best buildable
+        /// material in the game, is 0.00001 on its own.
         /// </summary>
-        public bool MaterialIndependentInsulation = false;
+        public const float MinConductivity = 0.00001f;
+
+        public const float MaxConductivity = 1f;
+
+        /// <summary>The value vanilla <c>InsulationTileConfig</c> uses.</summary>
+        public const float DefaultConductivity = 0.01f;
+
+        [Option("Insulation model",
+            "How much the material a tile is built from affects how well it insulates.")]
+        [RestartRequired]
+        [JsonProperty]
+        public InsulationMode Mode { get; set; }
+
+        [Option("Insulation strength",
+            "Lower insulates better. 0.01 is what a vanilla Insulated Tile uses, and means the same "
+            + "thing here under either model. In the vanilla model this multiplies the build "
+            + "material's own conductivity; in the constant model it is the result outright.",
+            Format = "0.#####")]
+        [Limit(MinConductivity, MaxConductivity)]
+        [RestartRequired]
+        [JsonProperty]
+        public float TargetConductivity { get; set; }
+
+        public Settings()
+        {
+            Mode = InsulationMode.VanillaTileParity;
+            TargetConductivity = DefaultConductivity;
+        }
 
         /// <summary>
-        /// 0.01 is the value vanilla <c>InsulationTileConfig</c> uses, so the
-        /// default is a like-for-like copy of the Insulated Tile either way.
-        ///
-        /// Its meaning does depend on the mode above: with
-        /// <see cref="MaterialIndependentInsulation"/> off it is the *multiplier*
-        /// applied to the build material's conductivity; with it on it is the
-        /// resulting effective conductivity itself.
+        /// No <c>[Option]</c>, so PLib builds no dialog row for it -- entries are
+        /// only created from attributes. Reading the mode through one named
+        /// predicate keeps the enum comparison out of the building configs.
         /// </summary>
-        public float TargetConductivity = 0.01f;
+        public bool MaterialIndependentInsulation => Mode == InsulationMode.MaterialIndependent;
 
-        private static Settings instance;
+        /// <summary>
+        /// The dialog clamps to <c>[Limit]</c>, but a hand-edited config file does
+        /// not go through the dialog. A zero or negative value would divide by
+        /// zero in material-independent mode and mean "perfectly conductive" in
+        /// the vanilla model, so it is clamped at the point of use instead of
+        /// being trusted.
+        /// </summary>
+        public float ResolvedConductivity => Mathf.Clamp(TargetConductivity, MinConductivity, MaxConductivity);
 
-        public static Settings Instance => instance ?? (instance = new Settings());
-
-        public static void Load(string modPath)
+        public void OnOptionsChanged()
         {
-            string path = Path.Combine(modPath, "config.json");
-
-            if (!File.Exists(path))
-            {
-                UnityEngine.Debug.Log("[InsulatedFarmTiles] No config.json at " + path + ", using defaults.");
-                instance = new Settings();
-                return;
-            }
-
-            try
-            {
-                instance = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(path)) ?? new Settings();
-
-                // A non-positive conductivity would divide by zero in
-                // material-independent mode and mean "perfectly conductive" in
-                // parity mode -- neither is what anyone editing this file wants.
-                if (!(instance.TargetConductivity > 0f))
-                {
-                    UnityEngine.Debug.LogWarning(
-                        "[InsulatedFarmTiles] TargetConductivity must be greater than 0, ignoring "
-                        + instance.TargetConductivity + " and using 0.01.");
-                    instance.TargetConductivity = 0.01f;
-                }
-
-                UnityEngine.Debug.Log("[InsulatedFarmTiles] Loaded config from " + path);
-            }
-            catch (System.Exception e)
-            {
-                UnityEngine.Debug.LogWarning(
-                    "[InsulatedFarmTiles] config.json could not be read (" + e.Message + "), using defaults.");
-                instance = new Settings();
-            }
+            Instance = POptions.ReadSettings<Settings>() ?? new Settings();
         }
+
+        /// <summary>Null means "use the attribute-driven entries", which is all this mod needs.</summary>
+        public IEnumerable<IOptionsEntry> CreateOptions() => null;
     }
 }
