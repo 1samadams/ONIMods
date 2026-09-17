@@ -18,6 +18,19 @@ expects — DLL and yamls side by side. This mod used to live flat at its own
 repo root; if you move files again, update the layout table in `README.md`
 and the `ModAssetsDir`/`StageDir` paths in the csproj.
 
+## Provenance and licence
+
+Original work. The patch set was derived by enumerating `IBlueprintInfo`
+implementations in the game's own `Assembly-CSharp.dll`, not from any existing
+mod. MIT-licensed; see `LICENSE`.
+
+There is an unrelated third-party mod with a near-identical name
+(`nuzkito/unlock-all-blueprints`) that lands on the same Universal-rarity
+technique — close to the only way to do this — but covers four of the seven
+info types and has not been updated since game build 700386. It shares no
+lineage with this mod. **Do not add a `NOTICE.md` or attribution for it**; the
+convergence was checked and is coincidental.
+
 ## No game files in this repo
 
 `Assembly-CSharp.dll`, `0Harmony.dll`, and the other Managed DLLs referenced

@@ -77,5 +77,11 @@ you copy into the game's Local mods directory.
 | `src/UnlockAllBlueprints/UnlockAllBlueprintsMod.cs` | `UserMod2` entry point that applies the Harmony patches |
 | `src/UnlockAllBlueprints/Patches.cs` | The Harmony patches themselves |
 | `src/UnlockAllBlueprints/UnlockAllBlueprints.csproj` | Mod-specific build settings; shared settings live in the monorepo's `Directory.Build.props` |
+| `LICENSE` | MIT licence for this mod |
 
 See `CLAUDE.md` for notes aimed at AI coding agents working in this repo.
+
+## Licence
+
+MIT. Written from scratch against the game assembly; no third-party mod code is
+included. See [`LICENSE`](LICENSE).
