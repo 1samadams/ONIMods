@@ -146,7 +146,8 @@ entries whose `BuildingDef` is null, but only *after* its `RegisterBuilding`
 loop, by which point these defs exist.
 
 Constants behind it, all verified in `TUNING.BUILDINGS`:
-- Vanilla `FarmTile` and `HydroponicFarm` are plan category `Food`, subcategory
+- Vanilla `FarmTile` and `HydroponicFarm` are plan category `Farm` (it was `Food`
+  until build 764025 split farming into its own tab), subcategory
   `farming` (`PLANSUBCATEGORYSORTING`). Passing each as the anchor puts the
   insulated version directly after its vanilla twin.
 - Tech `FinerDining` displays as **Gourmet Meal Preparation**.
@@ -373,7 +374,7 @@ below is what would establish that.
 
 ## Testing checklist (user runs the game; ask them to report)
 1. Game launches with the mod enabled, no crash, listed in the Mods menu.
-2. Both tiles appear under **Food → Farming**, directly after Farm Tile and
+2. Both tiles appear under **Farm → Farming**, directly after Farm Tile and
    Hydroponic Farm, correctly named — not `MISSING.STRINGS...` and **not** in a
    separate "Uncategorized" group. A stray group means the subcategory argument
    regressed.

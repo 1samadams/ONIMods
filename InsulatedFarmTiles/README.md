@@ -8,7 +8,7 @@ temperature-controlled grow room can be sealed off and fed by pipe.
 
 Both cost 200 kg of raw minerals, build at vanilla farm-tile speed, and unlock
 with **Gourmet Meal Preparation**, next to their vanilla counterparts under
-**Food → Farming**.
+**Farm → Farming**.
 
 A community continuation of Bokonon's *Insulated Farm Tiles* by way of erotel's
 *Insulated Farm Tiles (Fixed)*. Full lineage and credits in

@@ -25,7 +25,8 @@ namespace InsulatedFarmTiles
             "A farm tile insulated to help with temperature regulation. Useful for feeding plants "
             + "from outside an otherwise sealed environment.";
 
-        public const string PlanCategory = "Food";
+        // "Farm" since build 764025, which split farming out of the Food tab.
+        public const string PlanCategory = "Farm";
         public const string PlanSubcategory = "farming";
 
         /// <summary>Placed straight after vanilla Farm Tile in the build menu.</summary>

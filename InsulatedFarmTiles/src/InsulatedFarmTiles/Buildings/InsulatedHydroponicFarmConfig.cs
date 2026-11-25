@@ -24,7 +24,8 @@ namespace InsulatedFarmTiles
             "A hydroponic farm tile insulated to help with temperature regulation. Plants are watered "
             + "by pipe, so the room around them can stay sealed.";
 
-        public const string PlanCategory = "Food";
+        // "Farm" since build 764025, which split farming out of the Food tab.
+        public const string PlanCategory = "Farm";
         public const string PlanSubcategory = "farming";
 
         /// <summary>Placed straight after vanilla Hydroponic Farm in the build menu.</summary>
