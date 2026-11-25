@@ -26,7 +26,12 @@ Same rule as AutoMachines. Everything below was read out of the **current**
 - **Use the PowerShell tool for `dotnet`**, not the Bash tool; Bash's `dotnet`
   resolution is unreliable here.
 - Baseline game build: **`744825`**. Every claim in this file was verified
-  against it.
+  against it. At **`764025`** the Operational-flag chain below was re-checked
+  and holds; nothing else here has been re-verified yet.
+- **`764025` turned `IGameObjectEffectDescriptor` into default-interface-method
+  form** (`CollectDescriptors` new, `GetDescriptors` obsolete, each defaulting to
+  the other). net48 cannot consume DIMs, so a class implementing only one fails
+  with CS8702. `LumenMotionSensor` implements both; keep it that way.
 
 ## Architecture — how one Operational flag does all the work
 

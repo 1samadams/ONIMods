@@ -10,7 +10,7 @@ namespace Lumen
     ///
     /// It does this by driving one <see cref="Operational.Flag"/> rather than by
     /// touching Light2D, the animation or the power draw directly. That single flag is
-    /// enough because of how the vanilla chain is wired (verified against build 744825):
+    /// enough because of how the vanilla chain is wired (verified against build 744825, re-checked at 764025):
     ///
     ///   Operational.SetFlag(false)
     ///     -> UpdateOperational() sees a false flag, so IsOperational = false
@@ -221,16 +221,28 @@ namespace Lumen
             return false;
         }
 
-        public List<Descriptor> GetDescriptors(GameObject go)
+        /// <summary>
+        /// Build 764025 rewrote <see cref="IGameObjectEffectDescriptor"/>: the game
+        /// now calls <c>CollectDescriptors</c>, and both members carry default
+        /// implementations that forward to each other. Our net48 target cannot
+        /// consume default interface methods (CS8702), so both members are
+        /// implemented explicitly here. Do not delete either as redundant.
+        /// </summary>
+        public void CollectDescriptors(GameObject go, List<Descriptor> descriptors)
         {
             string text = ((extraSensorRadius > 0f)
                 ? string.Format(LumenStrings.SensorDescriptorExtended, extraSensorRadius, lingerSeconds)
                 : string.Format(LumenStrings.SensorDescriptor, lingerSeconds));
 
-            return new List<Descriptor>
-            {
-                new Descriptor(text, text),
-            };
+            descriptors.Add(new Descriptor(text, text));
+        }
+
+        /// <summary>Obsolete in the game since build 764025; kept for older callers.</summary>
+        public List<Descriptor> GetDescriptors(GameObject go)
+        {
+            List<Descriptor> descriptors = new List<Descriptor>();
+            CollectDescriptors(go, descriptors);
+            return descriptors;
         }
     }
 }
