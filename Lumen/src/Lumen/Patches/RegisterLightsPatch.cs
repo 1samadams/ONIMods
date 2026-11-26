@@ -49,7 +49,7 @@ namespace Lumen
                 if (!Settings.Instance.IsEnabled(light))
                 {
                     UnityEngine.Debug.Log(
-                        "[Lumen] " + light.Id + " is disabled in config.json; not adding it to the build menu.");
+                        "[Lumen] " + light.Id + " is disabled in the mod options; not adding it to the build menu.");
                     continue;
                 }
 

@@ -11,7 +11,7 @@ namespace Lumen
     /// conventional light -- but they are only lit while a duplicant is standing
     /// under them, so they are useless for the two things cheap light would
     /// otherwise trivialise (growing Bristle Blossoms and lighting an empty base).
-    /// The motion sensor is what pays for the wattage. Raising Watts in config.json
+    /// The motion sensor is what pays for the wattage. Raising Watts in the options
     /// without also disabling the sensor is the wrong dial to turn.
     /// </summary>
     public static class LumenLights

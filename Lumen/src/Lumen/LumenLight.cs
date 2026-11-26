@@ -87,7 +87,7 @@ namespace Lumen
         /// <summary>Decor is the vanilla per-building value, not something the mod invents.</summary>
         public EffectorValues Decor;
 
-        /// <summary>Default watts. Overridable per building in config.json.</summary>
+        /// <summary>Default watts. Overridable per building from the options screen.</summary>
         public float Watts;
 
         /// <summary>

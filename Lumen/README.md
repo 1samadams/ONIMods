@@ -63,39 +63,37 @@ These do not, because they are dark whenever nobody is standing under them:
 - **Ambient base lighting.** Lighting a whole base for a rounding error only
   works if the lights are on, and they are not.
 
-The sensor is what pays for the wattage. If you raise `Watts` in `config.json`
-without also widening `LingerSeconds`, you are turning the wrong dial.
+The sensor is what pays for the wattage. If you raise the power draw without
+also shortening how long a fixture stays lit, you are turning the wrong dial.
 
 ## Configuration
 
-`config.json` sits next to the DLL in the mod folder. Every field is optional;
-omit one and the building's default is used.
+Open the **Mods** menu and click the gear icon next to Lumen. Each fixture has
+its own section with four settings:
 
-```json
-{
-  "Lights": {
-    "LumenSpotlight": { "Enabled": true, "Watts": 1.0, "ExtraSensorRadius": 0.0, "LingerSeconds": 5.0 }
-  }
-}
-```
-
-- `Enabled` — `false` hides the building from the build menu and the research
+- **Enabled** — off hides the building from the build menu and the research
   tree. Copies already placed in a save keep working.
-- `Watts` — power draw while lit. Zero while dark, regardless of this value.
-  Self-heat scales with it, so raising this does not buy free cooling.
-- `ExtraSensorRadius` — detection reach *beyond* the lit beam, in tiles. `0` means
-  the fixture triggers strictly on what it lights, which is what you usually
-  want. Raise it to make a fixture anticipate arrivals, as the Sentry does.
-- `LingerSeconds` — how long it stays lit after the last Duplicant leaves.
+- **Power (W)** — draw while lit, 0.1–100. Zero while dark, regardless of this
+  value. Self-heat scales with it, so raising this does not buy free cooling.
+- **Extra sensor reach (tiles)** — detection reach *beyond* the lit beam, 0–32,
+  ignoring walls. `0` means the fixture triggers strictly on what it lights,
+  which is what you usually want. Raise it to make a fixture anticipate
+  arrivals, as the Sentry does.
+- **Stays lit (seconds)** — how long it stays lit after the last Duplicant
+  leaves, 0–60.
 
-> Earlier versions had a `SensorRadius` field that described a plain sphere around
-> the fixture. It is gone, and files still using it fall back to the new defaults.
+Every setting needs a **restart** to take effect: power and sensor values are
+built into the fixture when the game loads its buildings, so saving a change
+offers to restart the game for you. **Reset to default** restores the values in the table above.
 
-Unknown building names are ignored with a warning in `Player.log`. A malformed
-file falls back to defaults rather than stopping the mod from loading.
+The settings are saved in the game's shared `mods\config\` folder, not in the
+mod folder, so a Workshop update no longer wipes them.
 
-Your edits survive rebuilds: the build only copies `config.json` into the game's
-mod folder if it is not already there. Delete it to regenerate the defaults.
+> **Upgrading from a version with `config.json`:** on the first launch after
+> updating, Lumen copies any values from the old `config.json` in its mod folder
+> into the new settings, then stops reading that file. `Player.log` records it as
+> `migrated settings for N light(s)`. An old `SensorRadius` field, from before the
+> sensor followed the beam, is deliberately not carried over.
 
 ## Art
 
@@ -137,7 +135,8 @@ dotnet build src/Lumen/Lumen.csproj -c Release
 ```
 
 The build stages a ready-to-install folder at `dist/Lumen/` and tries to copy it
-into the game's Local mods folder.
+into the game's Local mods folder. PLib, which provides the options screen, is
+merged into `Lumen.dll` by ILRepack, so the DLL is the only file to ship.
 
 ## How it works, and how that was established
 

@@ -12,7 +12,7 @@ solution, `ONIMods.sln`, builds them all.
 | --- | --- | --- | --- |
 | **Auto Machines** | [`AutoMachines/`](AutoMachines/) | Makes duplicant-operated fabricators run on their own once materials are delivered — 25 buildings across the base game and every DLC. Patches the existing buildings in place instead of cloning them, so recipes, outputs and masses stay exactly vanilla. Every building is individually toggleable from the in-game mod options screen. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3779252781) |
 | **Unlock All Blueprints** | [`UnlockAllBlueprints/`](UnlockAllBlueprints/) | Unlocks all Printing Pod blueprints — building facades, artables, clothing items, balloon artist facades, sticker bombs, equippable facades and monument parts — regardless of Colony Achievement or Klei account unlock status. | _local only — not published_ |
-| **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and genuinely unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. The four cone fixtures aim in all four directions when *Rotate Everything* is installed. Vanilla lights are left untouched. Every fixture is tunable in `config.json`. | _local only — not published_ |
+| **Lumen** | [`Lumen/`](Lumen/) | Adds five motion-activated light fixtures unlocked alongside the Duplicant Motion Sensor. Each draws 1 W and stays dark — and genuinely unpowered — until a Duplicant walks into range, so Duplicants still get the lit-workspace work speed bonus without lighting an empty base. The four cone fixtures aim in all four directions when *Rotate Everything* is installed. Vanilla lights are left untouched. Every fixture is tunable from the in-game options screen. | _local only — not published_ |
 | **Fast Insulated Self Sealing AirLock** | [`FastInsulatedSelfSealingAirLock/`](FastInsulatedSelfSealingAirLock/) | A 1×2 manual pressure door that stays a perfect seal in the simulation while still animating open for Duplicants — gas, liquid and heat are all blocked unless the door is explicitly set to Opened. Door speed is configurable from 1× to 20×. A community continuation of Neavo's mod; see [`NOTICE.md`](FastInsulatedSelfSealingAirLock/mod/NOTICE.md) for the full lineage. | [Subscribe](https://steamcommunity.com/sharedfiles/filedetails/?id=3755915137) |
 | **Insulated Farm Tiles Continued** | [`InsulatedFarmTiles/`](InsulatedFarmTiles/) | A Farm Tile and a Hydroponic Farm Tile that insulate exactly like a vanilla Insulated Tile, so a grow room can be sealed and temperature-controlled while still being watered and fertilised from outside. Insulation strength, and whether it scales with the build material, are set from the in-game mod options screen. A community continuation of Bokonon's mod by way of erotel's fork; see [`NOTICE.md`](InsulatedFarmTiles/mod/NOTICE.md) for the full lineage. | _local only — not published_ |
 
@@ -124,13 +124,13 @@ target framework, the shared game references and the
 A mod needing an extra assembly (Auto Machines, Lumen and Insulated Farm Tiles
 all use `Newtonsoft.Json` for their settings) declares that in its own `.csproj`.
 
-Auto Machines and Insulated Farm Tiles carry an `ILRepack.targets` next to their
+Auto Machines, Insulated Farm Tiles and Lumen carry an `ILRepack.targets` next to their
 `.csproj`, holding the target that merges PLib into the mod assembly. **That
 filename is load-bearing**: `ILRepack.Lib.MSBuild.Task` injects a merge target of
 its own in Release builds unless a file of exactly that name exists, and the
 injected one passes no `LibraryPath`, so it cannot resolve the game's
 `Newtonsoft.Json` (referenced `Private=false` and therefore never copied to the
-output). Deleting either file breaks `dotnet build ONIMods.sln -c Release` — and
+output). Deleting any of them breaks `dotnet build ONIMods.sln -c Release` — and
 only Release, which is what makes it hard to spot.
 
 The injected target is Release-only, so a mod that is only ever built with the
@@ -209,13 +209,13 @@ turns out to be a sequencing question.
 
 **Any mod here that has settings should expose them through the Mods-menu options
 dialog, not a `config.json` a player has to find and hand-edit.** New mods start
-that way; existing ones move across as they are touched. Auto Machines and
-Insulated Farm Tiles are converted; Lumen still uses a JSON file.
+that way; existing ones move across as they are touched. Auto Machines,
+Insulated Farm Tiles and Lumen are converted.
 
 Editing JSON by hand is the wrong ask of a player who just subscribed on the
 Workshop, and there is a concrete failure mode behind the preference: a config
 file inside the mod folder is **overwritten by Steam on every mod update**, so
-settings silently reset. Both converted mods therefore keep their file in the
+settings silently reset. The converted mods therefore keep their file in the
 game's shared `mods\config\` directory instead.
 
 #### PLib is what provides it

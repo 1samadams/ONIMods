@@ -79,7 +79,7 @@ confirm it still holds if Klei ever reworks `Workable`.
 build-menu number and the real draw.
 
 **This is why `Settings.Load` must run before `base.OnLoad(harmony)`** — the def
-is created later, but from config values that must already be in memory.
+is created later, but from option values that must already be in memory.
 
 ## Registration — the ordering trap
 `LoadGeneratedBuildingsPatch` is a **prefix on
@@ -159,9 +159,11 @@ mod that adds buildings and is not what this constraint is about.
 
 ## Repo layout
 ```
-mod/mod.yaml, mod_info.yaml, config.json
+mod/mod.yaml, mod_info.yaml
+src/Lumen/ILRepack.targets                   merges PLib; the file's existence is load-bearing
 src/Lumen/LumenMod.cs                        UserMod2 entry point; load order matters
-src/Lumen/Settings.cs                        config.json
+src/Lumen/Options.cs                         PLib options screen, 4 settings x 5 lights
+src/Lumen/Settings.cs                        facade over Options + legacy config.json migration
 src/Lumen/LumenLight.cs                      the per-building record type
 src/Lumen/LumenLights.cs                     the five lights, as data
 src/Lumen/LumenStrings.cs                    string table registration
@@ -217,7 +219,9 @@ the way `Light2D.AddToScenePartitioner` does.
 `ExtraSensorRadius` is the *only* remaining distance test, is 0 for everything
 but the Sentry, and is additive on top of the lit-cell set. It was renamed from
 `SensorRadius` on purpose so old config files fall back to defaults instead of
-silently reinstating the broken behaviour — Newtonsoft drops unknown fields.
+silently reinstating the broken behaviour — Newtonsoft drops unknown fields. The
+legacy migration (see Configuration) keeps that property: its `LegacyLight` has
+no `SensorRadius`, so the old key is dropped there too.
 
 ## Known limitations / deliberate trade-offs
 1. **`ExtraSensorRadius` ignores walls.** Only the Sentry uses it, and that is the
@@ -226,7 +230,7 @@ silently reinstating the broken behaviour — Newtonsoft drops unknown fields.
 2. **No status item** explaining *why* an unlit fixture is non-operational. The
    dark animation is the only feedback. A custom `StatusItem` would need its own
    string registration; deferred.
-3. **Disabling a light in `config.json` still registers the prefab.**
+3. **Disabling a light in the options still registers the prefab.**
    `LoadGeneratedBuildings` sweeps the assembly for config types and there is no
    supported opt-out. It is made unreachable three ways instead, the first being
    the game's own mechanism for this: `BuildingDef.Deprecated = true` (which tags
@@ -237,15 +241,61 @@ silently reinstating the broken behaviour — Newtonsoft drops unknown fields.
    `def.LogicOutputPorts` plus a `LogicPorts.SendSignal` call in the sensor.
 5. `SelfHeatKilowattsWhenActive` is **derived**, not chosen: `watts * 0.05`, which
    is vanilla's own ratio (a Ceiling Light burns 10 W and emits 0.5 kW). Deriving
-   it means raising `Watts` in `config.json` also makes the fixture hotter,
+   it means raising `Watts` in the options also makes the fixture hotter,
    instead of quietly handing out free cooling. Do not replace this with a
    literal.
+
+## Configuration — PLib options screen
+Converted from a hand-edited mod-folder `config.json` at game build `764961`,
+following the repo-wide rule in the root `CLAUDE.md`. Same shape as Auto
+Machines; read its *Configuration* and *PLib, and the ILRepack.targets trap*
+sections for the shared background. What is specific to Lumen:
+
+- **Settings are per light, not flat booleans.** `Options.cs` declares four
+  properties per light (`Enabled`, `Watts`, `ExtraSensorRadius`,
+  `LingerSeconds`), each light its own category. Property names are
+  `<LightId><Setting>`, e.g. `LumenSpotlightWatts`, and `Settings` finds them by
+  that name. **That naming is the contract.** Adding a sixth light means four
+  properties here, named to the pattern; `Settings.ValidateOptionsShape` logs a
+  warning at load for any that are missing, rather than letting the light run
+  unconfigurably on defaults.
+- **The `Options` constructor IS the defaults, copied from `LumenLights`.** Not a
+  style choice: PLib's dialog calls the constructor for its *Reset to default*
+  button (`OptionsDialog.OnResetConfig`) and when no file exists. Defaults applied
+  anywhere else would make Reset produce every light disabled at 0 W.
+- **`Settings` kept its API** (`Settings.Instance.WattsFor(light)` etc.), so
+  `LumenLightConfig` and `RegisterLightsPatch` did not change beyond comment text.
+- **Values are clamped to the `[Limit]` on read**, from disk as well as the screen:
+  W 0.1–100, reach 0–32, linger 0–60. PLib enforces limits only in its UI, so a
+  hand-edited file would otherwise get through. NaN/Infinity fall back to the
+  light's default.
+- **Everything is `[RestartRequired]`.** `Enabled` decides `Deprecated` and the
+  tech/plan entries at registration, `Watts` is baked into the `BuildingDef`, and
+  the sensor values are copied onto the prefab. PLib prompts for a restart on save
+  (`OptionsDialog.PromptForRestart`). The snapshot in `Settings` is deliberately
+  not refreshed by `OnOptionsChanged`.
+- **Migration** runs only when `POptions.ReadSettings` returns null. It reads the
+  old nested `{"Lights": {"<Id>": {...}}}` file from the mod folder, applies every
+  non-null field over the defaults, clamps, writes the new file and logs
+  `migrated settings for N light(s)`. The old file is left where it is.
+- `mod/config.json` is gone; nothing is staged or deployed for settings. The
+  deployed copy in `mods\Local\Lumen\` is left alone by the build because it is
+  what the migration reads on this machine.
+
+PLib API checked against the `PLib` 4.25.0 package (`OptionAttribute`,
+`LimitAttribute`, `ConfigFileAttribute`, `FloatOptionsEntry`, `OptionsDialog`),
+not recalled.
 
 ## Build & deploy
 ```
 dotnet build src/Lumen/Lumen.csproj -c Release
 ```
-Stages to `dist/Lumen/`, then tries to copy into the game's Local mods folder.
+Compiles, merges PLib into `bin\Release\merged\Lumen.dll` (`ILRepack.targets`),
+stages that to `dist/Lumen/`, then tries to copy into the game's Local mods folder.
+**Release is the documented build, so `ILRepack.targets` must exist** — without it
+`ILRepack.Lib.MSBuild.Task` injects its own Release-only merge, which cannot
+resolve the game's `Newtonsoft.Json`. Verified: two consecutive Release builds are
+clean.
 The deploy is `ContinueOnError` because Windows Controlled Folder Access guards
 the real Documents folder and fails with a misleading `Could not find file`. See
 the AutoMachines CLAUDE.md for the full explanation — it applies verbatim.
@@ -539,8 +589,8 @@ genuine problems.
    untinted means `LumenAppearance` is running too early; correct housings but
    no lens colour means the symbol names in `LensSymbols` are wrong.
 8. Save/load cycle works; the lights come back dark and re-trigger correctly.
-9. Set `"Enabled": false` for one light → it disappears from the build menu and
-   the research node, and the rest still work.
+9. Untick **Enabled** for one light in the options screen and restart → it
+   disappears from the build menu and the research node, and the rest still work.
 10. `Player.log` clean of Harmony errors and MISSING/STRINGS errors.
 11. With a rotation mod present: rotate a cone fixture sideways and confirm the
     beam, the glow and the *trigger area* all follow -- a Duplicant standing in
@@ -551,3 +601,14 @@ genuine problems.
 13. Performance sanity: build ~50 of them and confirm no frame-time regression.
     If there is one, the suspect is light grid churn from `SetFlag` edges, not
     the distance scan — raise `LingerSeconds`.
+14. **Options screen.** A gear icon next to Lumen in the Mods menu opens five
+    sections, one per light, four settings each, with the defaults from the
+    table in the README. No `FileNotFoundException` on PLib in `Player.log`
+    (that means the ILRepack merge did not happen).
+15. **Legacy migration.** First launch after this change: `Player.log` shows
+    `migrated settings for 5 light(s) from the old config.json` (this machine's
+    deployed `mods\Local\Lumen\config.json` is still there), and the file path
+    logged by `options loaded from ...` now exists.
+16. **Round-trip and Reset.** Change one light's power, save, accept the restart,
+    and confirm the build menu shows the new wattage. Then **Reset to default** —
+    every light must come back enabled with its normal values, not 0 W.

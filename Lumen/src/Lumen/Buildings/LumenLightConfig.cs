@@ -57,7 +57,7 @@ namespace Lumen
 
             // Heat is kept proportional to power at vanilla's own ratio: a Ceiling
             // Light burns 10 W and emits 0.5 kW, i.e. 0.05 kW per watt. Deriving it
-            // rather than picking a number means raising Watts in config.json also
+            // rather than picking a number means raising Watts in the options also
             // makes the fixture hotter, instead of quietly handing out free cooling.
             def.SelfHeatKilowattsWhenActive = watts * VanillaKilowattsOfHeatPerWatt;
 

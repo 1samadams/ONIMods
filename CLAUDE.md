@@ -31,7 +31,7 @@ only ever built in Debug and was working correctly the whole time.
 **Any mod here that has settings should expose them through the Mods-menu options
 dialog, not a `config.json` the player has to find and hand-edit.** New mods start
 that way; existing ones convert as they are touched. Converted so far: Auto
-Machines, Insulated Farm Tiles. Not yet: Lumen.
+Machines, Insulated Farm Tiles, Lumen.
 
 Two reasons, one of them concrete rather than aesthetic:
 
