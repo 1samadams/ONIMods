@@ -127,12 +127,43 @@ assume any of these is a one-liner:
   `GeneticAnalysisStationConfig`, `TelescopeConfig`, `ClusterTelescopeConfig`,
   `ClusterTelescopeEnclosedConfig`, `MissionControlConfig`,
   `MissionControlClusterConfig`, `RocketControlStationConfig`
+- **Ice Liquefier** — `IceKettleConfig`. DLC2. Its own `IceKettle` state machine
+  plus `IceKettleWorkable`. See "Cannot be automated at all" below — but note the
+  duplicant step is *extraction*, not melting.
 - **Duplicant services, not machines** — `AstronautTrainingCenterConfig`,
   `RoleStationConfig`, `ResetSkillsStationConfig`, `CampfireConfig`,
-  `IceKettleConfig`, `IceCooledFanConfig`, `LiquidCooledFanConfig`,
+  `IceCooledFanConfig`, `LiquidCooledFanConfig`,
   `LiquidPumpingStationConfig`, `CompostConfig`
 - **Not machines at all** — `GasValveConfig`, `LiquidValveConfig`, `WaterTrapConfig`
   set the flag only because duplicants adjust them
+
+### Cannot be automated at all — do not revisit these as "just another patch"
+Three of the buildings above are not merely out of scope for the fabricator patch.
+None of them has a `ComplexFabricator`, and in each case the duplicant is load-
+bearing for a step the fabricator patch does not model. Confirmed in-game, then
+traced through the decompile.
+
+- **Ice Liquefier** (`IceKettleConfig`) — there is nothing here for this mod to
+  automate, because the melting is *already* automatic. The config attaches three
+  `Storage`s: fuel (`BuildingWood`, ~153 kg) and kettle (`SimHashes.Ice`, 1000 kg)
+  each get their own `ManualDeliveryKG` on `FetchCritical`, so both inputs arrive by
+  ordinary Supply errands, and the `IceKettle` state machine melts on fuel and time
+  with no worker involved. `IceKettleWorkable.storage` is wired to the **output**
+  storage (500 kg, `allowItemRemoval = true`): the duplicant interaction is *taking
+  the water out*. `OverridePickupableInteractions` tags each stored liquid
+  `GameTags.LiquidSource` and sets `targetWorkable = this`, which routes what would
+  be a plain pickup through the building's 5 s bottling animation. The building
+  declares no conduit types at all — `CreateBuildingDef` sets `UtilityInputOffset`
+  and `UtilityOutputOffset` but never `InputConduitType`/`OutputConduitType` — so
+  that interaction is the only drain. Automating a fabricator would not touch any of
+  this.
+- **Telescope** / **Enclosed Telescope** (`ClusterTelescopeConfig`,
+  `ClusterTelescopeEnclosedConfig`) — no fabricator at all. `ClusterTelescope` adds
+  `ClusterTelescopeWorkable` and `ClusterTelescopeIdentifyMeteorWorkable`, and hex
+  reveal / meteor identification happen on work completion. Automating them would
+  mean reimplementing the scan, not un-gating it. Both also carry
+  `RequiredSkillPerkID` (`CanUseClusterTelescope`, `CanUseClusterTelescopeEnclosed`),
+  which is a *use* gate here, unlike the build-time perks noted below.
 
 `RequiredSkillPerkID` on `ChemicalRefineryConfig`, `AdvancedCraftingTableConfig`,
 `ClothingAlterationStationConfig`, `DeepfryerConfig`, `MissileFabricatorConfig`,
