@@ -353,6 +353,10 @@ while the preview was correct. Root-caused to `Light2D.Offset` moving the emitte
 into the cell below — fixed and made unrepresentable; see the section below. Not
 yet re-tested in game.
 
+**Play-test 7 (build 764961), options screen:** legacy migration confirmed
+in-game (checklist 15) — the old `config.json` carried across into the PLib
+file. Round-trip and **Reset to default** (checklist 16) not yet reported.
+
 Remaining open items are choices, not defects: the four ceiling fixtures still
 share a silhouette (limited by `ceilinglight_kanim` having one body part), and
 building facades are assessed but deliberately not implemented -- both below.
