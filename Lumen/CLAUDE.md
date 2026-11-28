@@ -355,7 +355,8 @@ yet re-tested in game.
 
 **Play-test 7 (build 764961), options screen:** legacy migration confirmed
 in-game (checklist 15) — the old `config.json` carried across into the PLib
-file. Round-trip and **Reset to default** (checklist 16) not yet reported.
+file. Round-trip and **Reset to default** (checklist 16) then reported working
+too, so the options-screen conversion is fully verified in game.
 
 Remaining open items are choices, not defects: the four ceiling fixtures still
 share a silhouette (limited by `ceilinglight_kanim` having one body part), and
